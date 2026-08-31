@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint → Build → Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # 4. Run linter (Oxlint)
+      - name: Lint
+        run: yarn lint
+
+      # 5. Check formatting (Prettier)
+      - name: Format check
+        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
+      # 6. Build the project
+      - name: Build
+        run: yarn build
+
+      # 7. Run unit tests
+      - name: Test
+        run: yarn test
