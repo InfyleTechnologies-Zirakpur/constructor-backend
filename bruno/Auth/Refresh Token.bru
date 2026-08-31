@@ -1,0 +1,17 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/users/USER_ID_HERE/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+  }
+}
