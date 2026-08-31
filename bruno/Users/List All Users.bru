@@ -1,0 +1,15 @@
+meta {
+  name: List All Users (Admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/users?page=1&limit=20
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
