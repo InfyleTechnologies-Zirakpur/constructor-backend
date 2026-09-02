@@ -1,0 +1,1128 @@
+INFYLE TECHNOLOGIES
+
+Developer Technical Brief
+Construction Workforce, Job & Site Management Platform
+Backend + User Mobile App + Contractor ERP App + Admin Web Panel
+
+Item
+Document purpose
+Primary interfaces
+Backend
+Database
+Cache / Queue
+File storage
+Push notifications
+Infrastructure
+Security
+Source basis
+
+Specification
+Developer-facing functional and technical implementation brief
+Admin Web, User Android App, Contractor ERP Android App
+NestJS / Node.js, REST API, Modular Monolith
+PostgreSQL
+Redis
+AWS S3
+Firebase FCM
+AWS EC2, Ubuntu, Docker, Nginx, CloudWatch
+HTTPS/TLS, JWT/session auth, RBAC, validation, restricted
+DB/Redis access
+Signed NDA & SOW dated 18 August 2026
+
+This document converts the approved SOW into an implementation-oriented brief. Where the SOW does not define an exact endpoint, table, UI
+control, or internal code structure, the document marks the recommendation as implementation guidance rather than a contractu al feature.
+
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+1. Product Understanding — One Page
+The platform is one shared backend powering three client interfaces. The User Android App handles Job Seeker,
+Company and construction calculation functionality. The Contractor ERP Android App handles Contractor and Site
+Engineer operations for projects and sites. The Admin Web Panel provides centralized administration, moderation,
+configuration, reporting and access control.
+Interface
+
+Primary users
+
+User Android App
+
+Job Seeker / Company user
+
+Contractor ERP Android App
+
+Contractor / Site Engineer
+
+Admin Web Panel
+
+Admin
+
+Backend API
+
+All interfaces
+
+Main responsibility
+Jobs, applications, company job posting,
+profiles, construction calculators
+Projects, sites, attendance, labour,
+materials, expenses, costing, progress
+and daily reports
+Central control of users, companies,
+contractors, projects, jobs, tools, reports,
+notifications and permissions
+Authentication, authorization, business
+rules, persistence, files, notifications and
+reporting
+
+Core business flow
+USER APP
+
+───────┐
+
+CONTRACTOR ERP ──┼──> HTTPS/REST API ──> NestJS Modular Monolith
+ADMIN WEB ──────┘
+
+│
+├── PostgreSQL
+├── Redis
+├── AWS S3
+├── Firebase FCM
+└── Background Jobs
+
+The SOW explicitly defines a Modular Monolith rather than microservices for the MVP. PostgreSQL and Redis remain
+protected internally and are not exposed directly to the public internet.
+
+2. Scope & Role Model
+2.1 Included roles
+Role
+Admin
+Job Seeker
+
+Interface
+Admin Web
+User Android App
+
+Company
+
+User Android App
+
+Contractor
+
+Contractor ERP Android App
+
+Site Engineer
+
+Contractor ERP Android App
+
+Access summary
+Platform-wide management and RBAC
+Profile, jobs, applications and notifications
+Company profile, job creation, publishing
+and applicant management
+Projects, sites, engineers, costing, reports
+and operational oversight
+Only assigned project/site; daily labour,
+material, expense, progress and report
+submission
+
+2.2 Explicit scope exclusions
+
+
+
+
+
+
+No separate Sub-Contractor application.
+No separate Sub-Contractor role.
+No separate Builder/Client Portal.
+No separate Worker Mobile Application.
+Site Engineer is a role inside the Contractor ERP, not a separate app.
+
+Source: SOW pages 9 and 29–30. The SOW states that Job Seeker and Company functionality stays inside the User Mobile App, while
+project/site operations stay inside the Contractor ERP.
+
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+3. User Android App — Functional Map
+3.1 Authentication
+
+
+
+
+
+
+Mobile registration
+OTP verification
+Login
+Forgot password
+Profile management
+
+3.2 Job Seeker
+Area
+
+Developer responsibilities
+Personal information, photo, skills, experience, education, work
+history
+Preferred location and salary expectation
+Certificates, experience letters and other supported documents
+Browse, search, category/location filtering, details
+Apply, save jobs, application history and status
+Job and application-related alerts
+
+Profile
+Preferences
+Documents
+Jobs
+Applications
+Notifications
+
+3.3 Company
+Area
+Registration
+
+Developer responsibilities
+Company registration and profile
+Company details, contact details, verification information and
+documents
+Title, description, skills, location, compensation and workforce
+requirements
+Publish, edit and close jobs
+List applicants, view profiles/skills/experience/documents
+Shortlisting and application status management
+
+Verification
+Job creation
+Publishing
+Applicants
+Application control
+
+3.4 Construction Calculation Tools
+Tool
+Concrete
+Cement
+Sand
+Aggregate
+Brick
+Steel
+Flooring
+Paint
+Plaster
+Material Estimation
+
+Expected capability
+Construction quantity calculation based on approved formulas
+Cement quantity/estimation calculation
+Sand quantity/estimation calculation
+Aggregate quantity/estimation calculation
+Brick quantity calculation
+Steel estimation/calculation
+Flooring quantity/estimation
+Paint quantity/estimation
+Plaster quantity/estimation
+General material estimation
+
+The SOW says the exact calculation logic/formulas are to be agreed and approved before implementation. Applicable configurations may be
+manageable through Admin where included in final requirements.
+
+4. Contractor ERP Android App — Functional Map
+4.1 Contractor
+
+
+
+
+
+
+Contractor registration/profile, company information, contact details and documents.
+Dashboard for operational/project overview.
+Create and manage projects.
+Set project duration, location and budget/contract value where applicable.
+Create one or more project sites.
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+
+
+
+Assign Site Engineers.
+View project progress, costing, expenses and profitability.
+
+4.2 Project Site
+
+
+
+
+
+Create site and store site information.
+Assign Site Engineer.
+View site progress.
+View attendance, material usage, labour cost, expenses and daily reports.
+
+4.3 Site Engineer
+The Site Engineer is the operational data-entry role. Access must be restricted to the project/site assigned to that
+engineer.
+Daily area
+
+Data captured
+Category, worker count, attendance, labour cost, overtime,
+remarks
+Material, quantity, unit, rate, total cost, consumed quantity,
+stock/balance where applicable
+Category, description, amount, date, receipt/supporting
+document, remarks
+Work completed, status, progress %, site remarks,
+photos/documents
+Project, site, date, labour, material, expenses, work, progress,
+cost, value, profit, remarks and attachments
+
+Labour
+Material
+Expenses
+Progress
+Daily report
+
+5. Core Business Logic
+5.1 Daily project cost
+Daily Project Cost = Labour Cost + Material Cost + Site Expenses + Other Configured Costs
+
+The backend should calculate the consolidated daily cost from approved records. Avoid duplicating the formula in multiple
+client apps; the API should remain the authoritative calculation layer.
+
+5.2 Estimated daily profit
+Estimated Daily Profit = Daily Project Value / Revenue - Daily Project Cost
+
+The final financial formula and methodology must be approved by the Client before implementation. The SOW specifically
+makes this approval a dependency.
+
+5.3 Daily report lifecycle
+1.
+2.
+3.
+4.
+5.
+6.
+
+Site Engineer opens the assigned site.
+Enters labour, attendance, material, expenses and progress.
+Backend validates records and calculates daily cost/value/profit where applicable.
+Engineer submits the daily report.
+Submitted report becomes available to authorized Contractor/Admin users.
+Notifications may be generated for report submission and configured workflow events.
+
+6. Backend Architecture
+Technology stack defined in the SOW:
+Layer
+API / Backend
+Architecture
+API style
+Database
+
+Technology
+NestJS / Node.js
+Modular Monolith
+REST API
+PostgreSQL
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+Cache / Queue
+File storage
+Push
+Server
+OS
+Container
+Reverse proxy
+Monitoring
+Security
+
+Redis
+AWS S3
+Firebase Cloud Messaging
+AWS EC2
+Ubuntu Linux
+Docker
+Nginx
+AWS CloudWatch
+HTTPS / JWT / RBAC
+
+6.1 Backend module boundaries
+Module
+auth
+authorization
+users
+companies
+contractors
+projects
+project-sites
+site-engineers
+jobs
+applications
+tools/calculators
+attendance
+
+Responsibility
+Registration, login, OTP, password reset, token/session handling
+RBAC, role checks, permission guards
+User profile and account lifecycle
+Company profile, verification and documents
+Contractor profile and project access
+Project master data, budget, duration, location
+Sites, engineer assignment and site-level access
+Engineer profile and assignment rules
+Job creation, publishing, editing, closing and moderation
+Job applications, status and shortlisting
+Construction calculators and configurable formulas
+Check-in/out, attendance history, working hours and overtime
+Material master, purchase, requests, issue, consumption and
+stock
+Project/site expenses and attachments
+Daily/project/site/attendance/cost/profitability reports
+FCM tokens, push events and announcements
+S3 upload metadata and secure file references
+Security and important business activity trail
+
+materials
+expenses
+reports
+notifications
+documents
+audit-logs
+
+7. Recommended Backend Project Structure
+The following structure is implementation guidance. The SOW defines the modules and technology, but does not prescribe exact folder names.
+
+src/
+common/
+guards/
+
+# JWT + RBAC guards
+
+decorators/
+
+# Current user, roles, permissions
+
+filters/
+
+# Exception handling
+
+interceptors/
+
+# Logging / response handling
+
+pipes/
+
+# Validation
+
+utils/
+config/
+modules/
+auth/
+users/
+companies/
+contractors/
+projects/
+project-sites/
+site-engineers/
+jobs/
+applications/
+calculators/
+attendance/
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+materials/
+expenses/
+reports/
+notifications/
+documents/
+audit-logs/
+database/
+jobs/
+
+# Background processing
+
+app.module.ts
+main.ts
+
+7.1 Module pattern
+module/
+controller.ts
+
+# HTTP routes
+
+service.ts
+
+# business rules
+
+repository.ts
+
+# DB access (if repository abstraction is used)
+
+dto/
+entities/
+validators/
+tests/
+Keep financial calculations, access rules and status transitions in backend services rather than trusting values submitted by mobile/web clients.
+
+8. Data Model — Recommended Logical Relationships
+The SOW names the business objects but does not provide a final ERD. The following is a recommended logical model for develop ment and
+should be finalized during database design.
+
+Entity
+User
+Company
+Job
+Application
+Contractor
+Project
+Project Site
+Site Engineer
+Attendance
+Labour Record
+Material
+Material Transaction
+Expense
+Daily Report
+Document
+Notification
+Audit Log
+
+Key relationships
+One user can have one/multiple role contexts depending on
+approved RBAC design
+Company owns/creates Jobs; company has documents and
+verification data
+Belongs to Company; receives Applications
+Links Job + Job Seeker; contains status and timestamps
+Owns/manages Projects
+Belongs to Contractor; contains one or more Project Sites
+Belongs to Project; assigned to one/more Site Engineers per
+final rule
+User identity + engineer role; access constrained by
+assignments
+Linked to project/site and labour/worker record
+Linked to project/site/date; feeds labour cost
+Master material definition
+Purchase/request/issue/consumption/stock movement
+Linked to project/site/date; supports attachments
+Project + site + date; aggregates daily operational records
+Metadata reference to S3 object
+User/device/event driven push record
+Actor + action + entity + timestamp + metadata
+
+8.1 Important data rules
+
+
+
+
+
+
+
+Use server-generated IDs and timestamps.
+Store monetary values using a fixed-precision numeric/decimal strategy rather than floating point.
+Store uploaded file metadata in PostgreSQL while binaries remain in S3.
+Do not expose raw S3 credentials to mobile apps.
+Use database transactions for multi-record operations that must remain consistent.
+Keep report snapshots/audit history if later edits could change reported financial results.
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+9. API Design Guidelines
+The SOW specifies REST APIs but does not define exact routes. These examples are recommended conventions, not fixed contractual
+endpoint names.
+
+Domain
+
+Example endpoints
+POST /auth/register, POST /auth/verify-otp, POST /auth/login,
+POST /auth/forgot-password
+GET /jobs, GET /jobs/:id, POST /jobs, PATCH /jobs/:id, POST
+/jobs/:id/close
+POST /jobs/:id/apply, GET /applications/me, PATCH
+/applications/:id/status
+GET /projects, POST /projects, GET /projects/:id, PATCH
+/projects/:id
+POST /projects/:id/sites, GET /sites/:id, POST /sites/:id/assignengineer
+POST /sites/:id/labour, POST /sites/:id/materials, POST
+/sites/:id/expenses
+POST /sites/:id/attendance/check-in, POST
+/sites/:id/attendance/check-out
+GET /projects/:id/reports, POST /sites/:id/daily-reports
+POST /documents/presign, POST /documents/complete
+POST /notifications/register-device
+
+Auth
+Jobs
+Applications
+Projects
+Sites
+Daily ops
+Attendance
+Reports
+Files
+Notifications
+
+9.1 API response principles
+
+
+
+
+
+
+
+Consistent HTTP status codes.
+Consistent error object: code, message, fieldErrors where required.
+Pagination for jobs, applicants, projects, reports, notifications and large lists.
+Server-side filtering/sorting for large datasets.
+Idempotency protection for sensitive operations where duplicate submission is possible.
+Never trust client-calculated cost/profit values as authoritative.
+
+10. Authentication & RBAC
+The SOW requires HTTPS/TLS, JWT/session-based authentication, RBAC, password hashing, API/input validation and
+authentication rate limiting.
+Layer
+Authentication
+Authorization
+Site isolation
+
+Rule
+Every protected API validates the user's token/session
+Role/permission guards decide whether the action is allowed
+Site Engineer may access only assigned project/site data
+Contractor access should be restricted to owned/authorized
+projects
+Admin permissions should be centrally controlled
+Validate DTOs and business constraints server-side
+Protect OTP/login/auth endpoints from abuse
+Validate type/size/access; use secure object references
+
+Contractor isolation
+Admin
+Input validation
+Rate limiting
+Files
+
+10.1 Example permission matrix
+Capability
+Manage users
+Create project
+Create site
+Enter daily site
+data
+Submit daily report
+View project
+profitability
+Create job
+Apply for job
+
+Admin
+Yes
+Yes
+Yes
+
+Contractor
+No
+Yes
+Yes
+
+Site Engineer
+No
+No
+No
+
+Company
+No
+No
+No
+
+Job Seeker
+No
+No
+No
+
+Yes
+
+Yes
+
+Yes
+
+No
+
+No
+
+Yes
+
+Yes
+
+Yes
+
+No
+
+No
+
+Yes
+
+Yes
+
+Assigned scope
+
+No
+
+No
+
+Yes
+Yes
+
+No
+No
+
+No
+No
+
+Yes
+No
+
+No
+Yes
+
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+Manage calculators
+
+Yes
+
+No
+
+No
+
+No
+
+No
+
+This matrix is a practical interpretation of the SOW's role model and should be finalized with the approved RBAC design.
+
+11. File & Document Handling
+AWS S3 is the file store for profile images, company/contractor/project/site documents, certificates, reports, receipts and
+supporting attachments.
+Client App -> Backend authorization -> secure upload flow -> S3
+└-> PostgreSQL stores metadata/reference
+
+
+
+
+
+
+
+Generate unique object keys; do not use user-provided filenames as the storage key.
+Validate MIME type and file size.
+Store owner, entity type, entity ID, object key, original filename, size and timestamps.
+Use private S3 objects and controlled access URLs where appropriate.
+Do not store large binary files directly in PostgreSQL.
+
+12. Notifications & Background Jobs
+Firebase Cloud Messaging (FCM) is specified for mobile push notifications.
+Event
+New job
+Application update
+Project assignment
+Site assignment
+Attendance event
+Daily report submitted
+Project update
+Admin announcement
+
+Potential recipient
+Relevant Job Seekers
+Job Seeker / Company
+Contractor / assigned engineer
+Assigned Site Engineer
+Relevant Contractor/Admin users
+Authorized Contractor/Admin
+Relevant project users
+Configured audience
+
+Recommended background-job use: notification fan-out, report export generation and other non-blocking tasks. Redis is
+specified as cache/queue infrastructure.
+
+13. Reporting & Analytics
+Report group
+
+Reports
+Summary, progress, project cost, labour cost, material cost,
+expense summary, profitability, daily reports
+Daily site, labour, material, expense, progress
+Attendance, contractor, user, company, job/application
+Cost and profitability
+PDF and Excel/CSV where included in approved implementation
+
+Project
+Site
+Operational
+Financial
+Export
+
+For large exports, generate files asynchronously rather than blocking the API request. Store generated report files in S3
+when appropriate.
+
+14. Admin Web Panel
+Module
+Dashboard
+Users
+
+Main functions
+Platform, user, company, contractor, project, job and operational
+statistics
+Listing, profile, Job Seeker and Company management,
+status/verification
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+Contractors
+Projects
+Jobs
+Tools
+Reports
+Notifications
+RBAC
+
+Listing, profile, projects, status and Site Engineer management
+Projects, sites, engineers, reports and operational data
+Categories, listings, moderation and applications
+Calculator categories, configuration and tool management
+User/company/contractor/project/site/attendance/cost/profitability
+Push notifications, announcements and alerts
+Central role and permission management
+
+Admin Web stack specified in the SOW: React / Next.js / Tailwind CSS.
+
+15. Mobile Front-End Architecture — Recommended
+Both mobile applications are specified as Flutter applications. They should consume the same REST backend while
+maintaining separate app experiences.
+Layer
+Presentation
+State
+Domain
+Data
+Services
+
+Recommended responsibility
+Screens, widgets, navigation, loading/error/empty states
+Auth/session state, feature state, form state
+Use cases/business-facing orchestration
+API clients, DTO mapping, local cache where needed
+FCM, secure storage, file picker/camera, permissions
+
+15.1 User App navigation
+Splash -> Auth -> Role/Context -> Home
+Home -> Jobs -> Job Details -> Apply -> Application Status
+Home -> Company -> Jobs -> Applicants -> Applicant Details
+Home -> Tools -> Calculator -> Inputs -> Result
+
+15.2 Contractor ERP navigation
+Login -> Dashboard
+Dashboard -> Projects -> Project -> Sites -> Site
+Site -> Attendance / Labour / Materials / Expenses / Progress
+Site -> Daily Report -> Review -> Submit
+Project -> Costing / Profitability / Reports
+Profile -> Contractor / Engineer account settings
+
+16. State & Status Design
+Status names below are recommended implementation states. The SOW defines the business actions but not exact enum values.
+
+Object
+Job
+Application
+Project
+Site
+Daily Report
+
+Recommended states
+Draft -> Published -> Closed
+Submitted -> Shortlisted -> Rejected / Accepted / Closed
+Draft -> Active -> Completed / Archived
+Active -> Inactive / Completed
+Draft -> Submitted -> Reviewed (if review workflow is approved)
+Pending -> Verified / Rejected (if verification workflow is
+approved)
+
+Document
+
+17. Infrastructure & Deployment
+The SOW recommends an initial AWS EC2-based production architecture.
+Component
+
+SOW specification
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+EC2
+Storage
+Runtime
+Reverse proxy
+API
+Database
+Cache/queue
+Monitoring
+Files
+Push
+
+t4g.medium, 2 vCPU, 4 GB RAM, ARM64/Graviton
+100–200 GB SSD
+Docker
+Nginx
+NestJS
+PostgreSQL
+Redis
+CloudWatch
+AWS S3
+Firebase FCM
+
+17.1 Production request path
+Internet
+-> HTTPS / TLS
+-> Nginx
+-> NestJS REST API
+-> PostgreSQL
+-> Redis
+-> AWS S3
+-> Background Jobs
+-> Firebase FCM
+
+PostgreSQL and Redis should remain on protected/private interfaces and should not be publicly exposed.
+
+18. Environment Configuration
+Recommended configuration pattern; exact variables are implementation details.
+
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=...
+REDIS_URL=...
+JWT_SECRET=...
+AWS_REGION=...
+AWS_S3_BUCKET=...
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY=...
+
+Secrets must be stored securely and never committed to source control or embedded in mobile binaries.
+
+19. Security Checklist
+
+
+
+
+
+
+
+
+
+
+
+HTTPS/TLS enabled in production.
+JWT/session authentication implemented consistently.
+RBAC enforced at API level.
+Site Engineer scope checked against assignment on every protected resource.
+Password hashing used; plaintext passwords never stored.
+DTO/input validation enabled.
+Authentication endpoints rate-limited.
+SQL injection protected through parameterized ORM/query mechanisms.
+CORS configured intentionally.
+Secure HTTP headers configured at Nginx/application layer.
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+
+
+
+
+
+
+Private PostgreSQL/Redis access only.
+S3 objects protected and access controlled.
+Audit logs for important administrative/business actions.
+Database backups configured.
+CloudWatch monitoring and operational alerts configured.
+
+20. Testing Strategy
+Test level
+Unit
+Service
+API
+Integration
+Mobile
+Admin Web
+Security
+UAT
+
+Minimum focus
+Calculation logic, permissions, status transitions, validators
+Project/site access, costing, applications, materials, expenses
+Auth, RBAC, CRUD, validation, pagination and error handling
+PostgreSQL, Redis, S3 and FCM integrations
+Navigation, forms, offline/error states, file upload, push handling
+Management screens, filters, reports, RBAC
+Auth abuse, unauthorized resource access, file validation
+End-to-end business workflows with client-approved formulas
+
+21. End-to-End Developer Scenarios
+Scenario A — Job Seeker applies for a job
+7. User registers and completes OTP verification.
+8. User completes profile, skills, experience and documents.
+9. User searches/filters jobs.
+10. User opens job details and submits application.
+11. Backend validates eligibility and creates application.
+12. Company sees applicant in applicant management.
+13. Company changes status/shortlists applicant.
+14. Backend triggers notification to the Job Seeker.
+
+Scenario B — Contractor creates project and site
+15. Contractor logs in.
+16. Creates project with duration/location/budget where applicable.
+17. Creates one or more project sites.
+18. Adds/assigns Site Engineer.
+19. Backend records assignment and access scope.
+20. Site Engineer sees only assigned site/project in ERP.
+
+Scenario C — Site Engineer submits daily report
+21. Engineer opens assigned site.
+22. Records labour and attendance.
+23. Records material purchase/usage/consumption.
+24. Records expenses and attachments.
+25. Records work progress and photos.
+26. Backend calculates daily cost from approved inputs.
+27. Backend calculates estimated daily profit using approved business formula.
+28. Engineer submits report.
+29. Contractor/Admin can view submitted report.
+
+22. Developer Acceptance Checklist
+
+
+All three interfaces connect to the same production backend API.
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+User App supports Job Seeker and Company flows.
+Construction calculators use client-approved formulas.
+Contractor ERP supports Contractor and Site Engineer roles.
+Site Engineer access is assignment-based.
+Project/site/labour/material/expense records are linked correctly.
+Daily cost is calculated server-side.
+Daily profitability is calculated server-side after formula approval.
+Daily reports can be submitted and viewed by authorized users.
+Admin can manage users, companies, contractors, projects, jobs and tools.
+Notifications are integrated through FCM.
+Files are stored in S3 with metadata in PostgreSQL.
+RBAC and validation are enforced server-side.
+PostgreSQL and Redis are not publicly exposed.
+CloudWatch monitoring is configured.
+Production deployment and source-code handover follow the SOW terms.
+
+23. Delivery & Timeline Reference
+Phase
+
+SOW duration
+
+1. Requirement + UI/UX
+
+5–7 working days
+
+2. Backend + DB
+
+8–10 working days
+
+3. Mobile Apps
+
+12–15 working days
+
+4. Admin Panel
+
+7–10 working days
+
+5. QA + Finalization
+
+5–8 working days
+
+Core development
+
+40–50 working days
+
+Deployment
+
+13–15 working days
+
+Primary output
+Requirements, user flows, wireframes,
+UI/UX, architecture
+APIs, auth, RBAC, PostgreSQL, core
+logic
+User App + Contractor ERP
+Dashboard, management, reports,
+configuration
+Testing, bug fixes, optimization, client
+review
+Overall development timeline
+Production deployment, subject to
+external dependencies
+
+Deployment timing is separate from core development and depends on AWS, domain/DNS, SSL, third-party credentials, Play Store
+requirements and client approvals.
+
+24. Source-of-Truth Notes for Developers
+
+
+
+
+
+
+
+
+
+
+The signed SOW is the contractual source of truth for scope.
+Do not add a new role/app merely because it appears logically useful.
+No Sub-Contractor app or role is included.
+No separate Worker app is included.
+No separate Builder/Client portal is included.
+Site Engineer remains inside the Contractor ERP.
+Financial formulas require Client approval before final implementation.
+Third-party/server/cloud charges are separate from the development fee.
+Out-of-scope functionality must be handled as a Change Request.
+
+25. Source References
+This brief is based on the uploaded NDA & Statement of Work, especially:
+Pages
+5–8
+9–14
+
+Covered content
+Project overview, objectives, User App, Job Seeker, Company
+and calculators
+Contractor ERP, Site Engineer, daily operations, costing, profit,
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+15–17
+18–22
+23–25
+29–30
+
+reports
+Admin Panel, notifications and system interfaces
+Technology stack, backend architecture, infrastructure, storage
+and security
+Deliverables, timeline and development phases
+Scope limitations and final system structure diagram
+
+The final system structure diagram on page 30 visually confirms the three-interface model and the flow from projects/sites through attendance,
+labour, material, expenses, daily cost, daily profit, reports and notifications. The server architecture diagram on page 21 shows the API layer
+connecting PostgreSQL, Redis, S3, background jobs and Firebase FCM.
+
+Infyle Technologies — Developer Technical Brief | Construction Workforce, Job & Site Management Platform
+
+

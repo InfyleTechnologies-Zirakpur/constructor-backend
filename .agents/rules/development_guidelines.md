@@ -5,7 +5,7 @@ description: Core architectural, coding, testing, and formatting guidelines for 
 
 # Construction Platform Development Guidelines
 
-These rules are derived from the `Construction_Platform_Developer_Technical_Brief.docx` and represent the source of truth for backend development on this project. 
+These rules are derived from the `Construction_Platform_Developer_Technical_Brief.pdf` and represent the source of truth for backend development on this project. 
 
 As an AI agent, you **MUST** adhere to these guidelines for all code generation, refactoring, and testing.
 
