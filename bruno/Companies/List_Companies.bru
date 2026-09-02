@@ -1,0 +1,15 @@
+meta {
+  name: List Companies (Admin)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/companies?page=1&limit=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

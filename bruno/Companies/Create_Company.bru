@@ -1,0 +1,25 @@
+meta {
+  name: Create Company
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/companies
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Acme Builders",
+    "contactEmail": "contact@acme.com",
+    "contactPhone": "+1234567890",
+    "address": "123 Construction Way",
+    "documentUrls": ["https://s3.amazonaws.com/bucket/doc1.pdf"]
+  }
+}

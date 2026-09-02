@@ -1,0 +1,22 @@
+meta {
+  name: Verify Company (Admin)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/companies/REPLACE_WITH_UUID/verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "verificationStatus": "verified",
+    "verificationRemarks": "Looks good."
+  }
+}
