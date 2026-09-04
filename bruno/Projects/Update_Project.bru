@@ -1,0 +1,22 @@
+meta {
+  name: Update Project
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/projects/REPLACE_WITH_UUID
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "active",
+    "budget": 5500000
+  }
+}

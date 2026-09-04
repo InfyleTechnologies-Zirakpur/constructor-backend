@@ -1,0 +1,26 @@
+meta {
+  name: Create Project
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/projects
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Skyline Tower",
+    "location": "Sector 45, Chandigarh",
+    "budget": 5000000,
+    "contractValue": 6500000,
+    "durationDays": 365,
+    "description": "High-rise residential building"
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: My Projects (Contractor)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/projects/my-projects?page=1&limit=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
