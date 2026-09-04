@@ -1,0 +1,15 @@
+meta {
+  name: Get Contractor (Admin)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/contractors/REPLACE_WITH_UUID
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

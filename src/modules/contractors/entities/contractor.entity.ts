@@ -12,9 +12,36 @@ import { User } from '../../users/entities/user.entity.js';
 @Entity('contractors')
 export class Contractor {
   @PrimaryGeneratedColumn('uuid') id: string;
+
   @Column() companyName: string;
-  @ManyToOne(() => User) @JoinColumn({ name: 'userId' }) user: User;
+
+  @Column({ nullable: true }) registrationNumber?: string;
+
+  @Column() contactEmail: string;
+
+  @Column() contactPhone: string;
+
+  @Column({ type: 'text', nullable: true }) address?: string;
+
+  @Column({ type: 'text', nullable: true }) description?: string;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'pending',
+  })
+  verificationStatus: string;
+
+  @Column({ type: 'text', nullable: true }) verificationRemarks?: string;
+
+  @Column('jsonb', { nullable: true, default: [] }) documentUrls?: string[];
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
   @Column() userId: string;
+
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;
 }

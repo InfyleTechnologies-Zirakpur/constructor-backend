@@ -1,0 +1,22 @@
+meta {
+  name: Verify Contractor (Admin)
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/contractors/REPLACE_WITH_UUID/verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "verificationStatus": "verified",
+    "verificationRemarks": "All documents verified. GST and PAN confirmed."
+  }
+}

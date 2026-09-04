@@ -1,0 +1,27 @@
+meta {
+  name: Create Contractor
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/contractors
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "companyName": "BuildRight Construction",
+    "registrationNumber": "BR-2024-001",
+    "contactEmail": "info@buildright.com",
+    "contactPhone": "+919876543210",
+    "address": "456 Builder Lane, Chandigarh",
+    "description": "Full-service construction and project management firm",
+    "documentUrls": ["https://s3.amazonaws.com/bucket/gst-cert.pdf", "https://s3.amazonaws.com/bucket/pan-card.pdf"]
+  }
+}

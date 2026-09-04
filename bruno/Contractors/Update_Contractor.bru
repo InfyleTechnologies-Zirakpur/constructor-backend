@@ -1,0 +1,22 @@
+meta {
+  name: Update Contractor
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/contractors/REPLACE_WITH_UUID
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "companyName": "BuildRight Construction Pvt Ltd",
+    "address": "789 Updated Address, Mohali"
+  }
+}
