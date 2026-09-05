@@ -1,0 +1,15 @@
+meta {
+  name: List Site Engineers
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/site-engineers
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

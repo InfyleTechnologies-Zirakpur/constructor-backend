@@ -1,0 +1,15 @@
+meta {
+  name: List Project Sites
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/projects/REPLACE_WITH_PROJECT_UUID/sites
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

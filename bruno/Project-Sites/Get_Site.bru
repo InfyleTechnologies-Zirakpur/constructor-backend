@@ -1,0 +1,15 @@
+meta {
+  name: Get Site
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/sites/REPLACE_WITH_SITE_UUID
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

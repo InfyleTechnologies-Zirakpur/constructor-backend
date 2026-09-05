@@ -1,0 +1,22 @@
+meta {
+  name: Update Job
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/jobs/REPLACE_WITH_UUID
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "published",
+    "compensation": 1300000
+  }
+}

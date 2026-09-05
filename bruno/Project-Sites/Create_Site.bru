@@ -1,0 +1,23 @@
+meta {
+  name: Create Site
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/projects/REPLACE_WITH_PROJECT_UUID/sites
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Block A - Foundation",
+    "location": "North Wing, Sector 45",
+    "description": "Foundation work for Block A residential tower"
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get Site Engineer
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/site-engineers/REPLACE_WITH_UUID
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

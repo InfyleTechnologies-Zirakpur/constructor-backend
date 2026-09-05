@@ -1,0 +1,26 @@
+meta {
+  name: Create Job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/jobs
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "title": "Senior Civil Engineer",
+    "location": "Chandigarh, India",
+    "skills": ["AutoCAD", "Site Management", "Structural Engineering"],
+    "description": "Looking for an experienced Civil Engineer for our new high-rise project.",
+    "compensation": 1200000,
+    "workforceRequired": 2
+  }
+}
