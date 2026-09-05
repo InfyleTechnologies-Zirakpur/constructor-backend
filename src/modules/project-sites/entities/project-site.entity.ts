@@ -5,18 +5,38 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity.js';
+import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
 
 @Entity('project_sites')
 export class ProjectSite {
   @PrimaryGeneratedColumn('uuid') id: string;
+
   @Column() name: string;
+
   @Column() location: string;
-  @Column({ default: 'active' }) status: string;
-  @ManyToOne(() => Project) @JoinColumn({ name: 'projectId' }) project: Project;
+
+  @Column({ type: 'text', nullable: true }) description?: string;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'active',
+  })
+  status: string;
+
+  @ManyToOne(() => Project, (project) => project.sites)
+  @JoinColumn({ name: 'projectId' })
+  project: Project;
+
   @Column() projectId: string;
+
+  @OneToMany(() => SiteEngineerAssignment, (assignment) => assignment.site)
+  engineerAssignments: SiteEngineerAssignment[];
+
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;
 }
