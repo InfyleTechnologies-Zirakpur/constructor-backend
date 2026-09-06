@@ -62,10 +62,16 @@ Here is a breakdown of all the commands you can run in this project and what the
 ## 🏗️ Architecture & Modules
 
 The platform is divided into the following core modules inside `src/modules/`:
-- **Auth & Authorization**: JWT token issuance, password resets, and Role-Based Access Control (RBAC).
-- **Users**: Central user management for all 5 roles.
-- **Jobs & Applications**: Job posting by companies and applications by job seekers.
-- **Projects & Sites**: Core tracking of contractor projects and site engineer assignments.
+- **Auth**: JWT token issuance, session management, and OTP verification.
+- **Users**: Central user management and profile updates for all 5 roles.
+- **Companies**: Company registration, profiles, and verification workflows.
+- **Contractors**: Contractor profiles, verification workflows, and secure document handling.
+- **Projects**: Core tracking of contractor projects, with strict contractor ownership isolation.
+- **Project-Sites**: Site creation and engineer assignment logic to tightly control access.
+- **Site-Engineers**: Profile management and assignment-based access rules for engineers.
+- **Jobs**: Job creation, publishing, editing, closing, and admin moderation features.
+
+*Upcoming Modules:*
 - **Attendance & Reports**: Daily worker check-ins, labor costs, material tracking, and profitability calculation.
 
 ## 🔐 Security (RBAC)
