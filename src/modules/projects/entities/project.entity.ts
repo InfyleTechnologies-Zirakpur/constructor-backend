@@ -1,3 +1,4 @@
+import type { Relation } from 'typeorm';
 import {
   Column,
   CreateDateColumn,
@@ -7,6 +8,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+ 
 } from 'typeorm';
 import { Contractor } from '../../contractors/entities/contractor.entity.js';
 import { ProjectSite } from '../../project-sites/entities/project-site.entity.js';
@@ -47,7 +49,7 @@ export class Project {
   @Column() contractorId: string;
 
   @OneToMany(() => ProjectSite, (site) => site.project)
-  sites: ProjectSite[];
+  sites: Relation<ProjectSite>[];
 
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;

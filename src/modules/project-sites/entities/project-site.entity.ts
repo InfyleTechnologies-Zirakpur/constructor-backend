@@ -1,3 +1,4 @@
+import type { Relation } from 'typeorm';
 import {
   Column,
   CreateDateColumn,
@@ -7,6 +8,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+ 
 } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity.js';
 import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
@@ -30,12 +32,12 @@ export class ProjectSite {
 
   @ManyToOne(() => Project, (project) => project.sites)
   @JoinColumn({ name: 'projectId' })
-  project: Project;
+  project: Relation<Project>;
 
   @Column() projectId: string;
 
   @OneToMany(() => SiteEngineerAssignment, (assignment) => assignment.site)
-  engineerAssignments: SiteEngineerAssignment[];
+  engineerAssignments: Relation<SiteEngineerAssignment>[];
 
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;

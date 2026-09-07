@@ -1,3 +1,4 @@
+import type { Relation } from 'typeorm';
 import {
   Column,
   CreateDateColumn,
@@ -5,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+ 
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 import { ProjectSite } from '../../project-sites/entities/project-site.entity.js';
@@ -21,7 +23,7 @@ export class SiteEngineerAssignment {
 
   @ManyToOne(() => ProjectSite, (site) => site.engineerAssignments)
   @JoinColumn({ name: 'siteId' })
-  site: ProjectSite;
+  site: Relation<ProjectSite>;
 
   @Column() siteId: string;
 
