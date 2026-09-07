@@ -21,7 +21,6 @@ const mockContractor = {
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
-  let projectRepo: Repository<Project>;
   let contractorRepo: Repository<Contractor>;
 
   beforeEach(async () => {
@@ -55,7 +54,6 @@ describe('ProjectsService', () => {
     }).compile();
 
     service = module.get<ProjectsService>(ProjectsService);
-    projectRepo = module.get<Repository<Project>>(getRepositoryToken(Project));
     contractorRepo = module.get<Repository<Contractor>>(
       getRepositoryToken(Contractor),
     );

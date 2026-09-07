@@ -10,7 +10,6 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
 
 vi.mock('bcryptjs', () => ({
   hash: vi.fn().mockResolvedValue('hashed-password'),

@@ -8,7 +8,6 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
- 
 } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity.js';
 import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';

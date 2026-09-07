@@ -6,7 +6,6 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
- 
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 import { ProjectSite } from '../../project-sites/entities/project-site.entity.js';

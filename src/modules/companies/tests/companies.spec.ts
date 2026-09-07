@@ -3,7 +3,7 @@ import { CompaniesService } from '../companies.service.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Company } from '../entities/company.entity.js';
 import { Repository } from 'typeorm';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import {
   UpdateCompanyDto,
   CompanyVerificationStatus,

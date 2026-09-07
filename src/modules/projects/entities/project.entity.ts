@@ -8,7 +8,6 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
- 
 } from 'typeorm';
 import { Contractor } from '../../contractors/entities/contractor.entity.js';
 import { ProjectSite } from '../../project-sites/entities/project-site.entity.js';
