@@ -1,0 +1,21 @@
+meta {
+  name: List Applications
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/applications?page=1&limit=10&status=pending
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  page: 1
+  limit: 10
+  status: pending
+}

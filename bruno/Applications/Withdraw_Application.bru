@@ -1,0 +1,19 @@
+meta {
+  name: Withdraw Application
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/applications/:id/withdraw
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{applicationId}}
+}

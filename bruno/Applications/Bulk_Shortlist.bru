@@ -1,0 +1,21 @@
+meta {
+  name: Bulk Shortlist
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/applications/bulk-shortlist
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "applicationIds": ["{{applicationId1}}", "{{applicationId2}}"]
+  }
+}
