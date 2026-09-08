@@ -1,0 +1,22 @@
+meta {
+  name: Steel Calculator
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/calculators/steel?length=10&breadth=5&depth=0.15&steelPercentage=1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  length: 10
+  breadth: 5
+  depth: 0.15
+  steelPercentage: 1
+}

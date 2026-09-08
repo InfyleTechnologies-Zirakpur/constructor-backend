@@ -1,0 +1,21 @@
+meta {
+  name: Cement Calculator
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/calculators/cement?area=100&thickness=0.012&mixRatio=1:4
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  area: 100
+  thickness: 0.012
+  mixRatio: 1:4
+}

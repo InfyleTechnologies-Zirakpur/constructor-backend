@@ -1,0 +1,22 @@
+meta {
+  name: Aggregate Calculator
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/calculators/aggregate?length=5&breadth=3&height=0.15&mixRatio=1:2:4
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  length: 5
+  breadth: 3
+  height: 0.15
+  mixRatio: 1:2:4
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Concrete Calculator
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/calculators/concrete?length=10&breadth=5&height=0.15&mixRatio=1:2:4
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  length: 10
+  breadth: 5
+  height: 0.15
+  mixRatio: 1:2:4
+}

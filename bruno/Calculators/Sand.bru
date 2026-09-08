@@ -1,0 +1,21 @@
+meta {
+  name: Sand Calculator
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/calculators/sand?area=100&thickness=0.02&mixRatio=1:4
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  area: 100
+  thickness: 0.02
+  mixRatio: 1:4
+}

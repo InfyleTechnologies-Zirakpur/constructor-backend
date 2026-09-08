@@ -1,0 +1,21 @@
+meta {
+  name: Material Estimation
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/calculators/material-estimation?area=100&thickness=0.15&materialType=concrete
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  area: 100
+  thickness: 0.15
+  materialType: concrete
+}

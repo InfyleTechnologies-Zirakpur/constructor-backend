@@ -1,0 +1,23 @@
+meta {
+  name: Flooring Calculator
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/calculators/flooring?roomLength=5&roomBreadth=4&tileLength=0.6&tileBreadth=0.6&wastagePercent=5
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  roomLength: 5
+  roomBreadth: 4
+  tileLength: 0.6
+  tileBreadth: 0.6
+  wastagePercent: 5
+}

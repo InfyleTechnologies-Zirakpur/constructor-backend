@@ -1,0 +1,21 @@
+meta {
+  name: Paint Calculator
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/calculators/paint?wallArea=100&coats=2&coveragePerLitre=12
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  wallArea: 100
+  coats: 2
+  coveragePerLitre: 12
+}

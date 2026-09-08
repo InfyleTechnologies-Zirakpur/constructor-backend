@@ -1,0 +1,22 @@
+meta {
+  name: Brick Calculator
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/calculators/brick?wallLength=10&wallHeight=3&wallThickness=0.23&mortarThickness=0.01
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  wallLength: 10
+  wallHeight: 3
+  wallThickness: 0.23
+  mortarThickness: 0.01
+}
