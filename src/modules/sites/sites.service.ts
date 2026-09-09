@@ -29,6 +29,9 @@ export class SitesService {
   }
 
   async createDailyReport(siteId: string, dto: Partial<DailyReport>) {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
     const totalLabourCost = Number(dto.totalLabourCost ?? 0);
     const totalMaterialCost = Number(dto.totalMaterialCost ?? 0);
     const totalExpense = Number(dto.totalExpense ?? 0);
@@ -36,7 +39,7 @@ export class SitesService {
 
     const report = this.dailyReportRepository.create({
       siteId,
-      date: new Date(),
+      date: dateStr,
       totalLabourCost,
       totalMaterialCost,
       totalExpense,
