@@ -274,6 +274,23 @@ export class AttendanceService {
     };
   }
 
+  /**
+   * Get total labour cost for a site (feeds into daily cost calculation).
+   */
+  async getSiteLabourCost(siteId: string, date?: string): Promise<number> {
+    const query = this.labourRepo
+      .createQueryBuilder('lr')
+      .select('SUM(lr.totalCost)', 'total')
+      .where('lr.siteId = :siteId', { siteId });
+
+    if (date) {
+      query.andWhere('lr.date = :date', { date });
+    }
+
+    const result = await query.getRawOne();
+    return Number(result?.total ?? 0);
+  }
+
   // ─── HELPERS ──────────────────────────────────────
 
   private todayString(): string {
