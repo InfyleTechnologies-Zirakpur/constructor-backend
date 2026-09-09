@@ -134,9 +134,7 @@ export class ReportsService {
         Number(report.dailyRevenue) - report.totalDailyCost;
     } else if (dto.status === 'reviewed') {
       if (report.status !== 'submitted') {
-        throw new BadRequestException(
-          'Only submitted reports can be reviewed',
-        );
+        throw new BadRequestException('Only submitted reports can be reviewed');
       }
       // Only admin or contractor can review
       if (role !== 'admin' && role !== 'contractor') {

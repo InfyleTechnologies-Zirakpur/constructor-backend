@@ -83,18 +83,13 @@ describe('ReportsService', () => {
     it('should aggregate costs server-side and calculate profit', async () => {
       reportRepo.findOne.mockResolvedValue(null); // no duplicate
 
-      await service.createDailyReport(
-        'site-1',
-        'admin-1',
-        'admin',
-        {
-          date: '2026-09-09',
-          otherCosts: 500,
-          dailyRevenue: 15000,
-          progressPercentage: 40,
-          workCompleted: 'Foundation work',
-        },
-      );
+      await service.createDailyReport('site-1', 'admin-1', 'admin', {
+        date: '2026-09-09',
+        otherCosts: 500,
+        dailyRevenue: 15000,
+        progressPercentage: 40,
+        workCompleted: 'Foundation work',
+      });
 
       // Labour=5000 + Material=3000 + Expense=1000 + Other=500 = 9500
       expect(reportRepo.create).toHaveBeenCalledWith(

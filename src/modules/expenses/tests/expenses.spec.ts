@@ -119,12 +119,9 @@ describe('ExpensesService', () => {
         amount: 500,
       });
 
-      const result = await service.updateExpense(
-        'exp-1',
-        'admin-1',
-        'admin',
-        { amount: 600 },
-      );
+      const result = await service.updateExpense('exp-1', 'admin-1', 'admin', {
+        amount: 600,
+      });
 
       expect(expenseRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ amount: 600 }),
