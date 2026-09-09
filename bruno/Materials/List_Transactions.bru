@@ -1,0 +1,23 @@
+meta {
+  name: List Site Transactions
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/sites/:siteId/materials?type=purchase
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+params:query {
+  type: purchase
+}

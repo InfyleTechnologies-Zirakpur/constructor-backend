@@ -1,0 +1,25 @@
+meta {
+  name: Update Request Status
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/materials/transactions/:id/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{transactionId}}
+}
+
+body:json {
+  {
+    "requestStatus": "approved"
+  }
+}

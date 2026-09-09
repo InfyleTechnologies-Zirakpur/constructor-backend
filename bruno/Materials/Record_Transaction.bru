@@ -1,0 +1,32 @@
+meta {
+  name: Record Material Transaction
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/materials
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "materialId": "{{materialId}}",
+    "type": "purchase",
+    "date": "2026-09-09",
+    "quantity": 100,
+    "rate": 350,
+    "supplier": "ABC Suppliers",
+    "referenceNumber": "INV-2026-001",
+    "remarks": "Cement for foundation work"
+  }
+}

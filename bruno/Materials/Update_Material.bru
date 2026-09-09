@@ -1,0 +1,26 @@
+meta {
+  name: Update Material (Admin)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/materials/:id
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{materialId}}
+}
+
+body:json {
+  {
+    "defaultRate": 400,
+    "isActive": true
+  }
+}

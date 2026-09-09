@@ -1,0 +1,19 @@
+meta {
+  name: Get Material
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/materials/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{materialId}}
+}

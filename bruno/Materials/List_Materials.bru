@@ -1,0 +1,20 @@
+meta {
+  name: List Materials
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/materials?page=1&limit=20
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  page: 1
+  limit: 20
+}

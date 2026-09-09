@@ -1,0 +1,19 @@
+meta {
+  name: Get Stock Balance
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/sites/:siteId/materials/stock
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}

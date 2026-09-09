@@ -1,0 +1,25 @@
+meta {
+  name: Create Material (Admin)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/materials
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Cement OPC 43",
+    "unit": "bag",
+    "category": "cement",
+    "defaultRate": 350,
+    "description": "OPC 43 grade cement, 50kg bag"
+  }
+}
