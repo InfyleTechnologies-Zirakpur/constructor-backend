@@ -1,0 +1,19 @@
+meta {
+  name: List Attendance
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/attendance?month=2026-09
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  month: 2026-09
+}

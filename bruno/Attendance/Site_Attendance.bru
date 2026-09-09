@@ -1,0 +1,23 @@
+meta {
+  name: Site Attendance List
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/sites/:siteId/attendance?date=2026-09-09
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+params:query {
+  date: 2026-09-09
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Check Out
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/attendance/check-out
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "latitude": 30.210,
+    "longitude": 74.945
+  }
+}

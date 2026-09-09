@@ -1,0 +1,31 @@
+meta {
+  name: Create Labour Record
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/labour
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "date": "2026-09-09",
+    "headcount": 10,
+    "category": "skilled",
+    "dailyWage": 500,
+    "overtimeHours": 2,
+    "overtimeRate": 100,
+    "remarks": "Electrical wiring work"
+  }
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Check In
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/attendance/check-in
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "latitude": 30.210,
+    "longitude": 74.945
+  }
+}

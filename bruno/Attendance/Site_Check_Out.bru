@@ -1,0 +1,26 @@
+meta {
+  name: Site Check Out (ERP)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/attendance/check-out
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "latitude": 30.210,
+    "longitude": 74.945
+  }
+}

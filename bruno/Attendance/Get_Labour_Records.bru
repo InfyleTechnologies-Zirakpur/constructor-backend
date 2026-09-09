@@ -1,0 +1,23 @@
+meta {
+  name: Get Labour Records
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/sites/:siteId/labour?date=2026-09-09
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+params:query {
+  date: 2026-09-09
+}

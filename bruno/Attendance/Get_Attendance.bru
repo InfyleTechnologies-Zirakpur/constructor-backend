@@ -1,0 +1,19 @@
+meta {
+  name: Get Attendance Record
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/attendance/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{attendanceId}}
+}

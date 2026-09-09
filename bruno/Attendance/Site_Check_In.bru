@@ -1,0 +1,26 @@
+meta {
+  name: Site Check In (ERP)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/attendance/check-in
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "latitude": 30.210,
+    "longitude": 74.945
+  }
+}
