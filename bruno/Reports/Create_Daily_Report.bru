@@ -1,0 +1,31 @@
+meta {
+  name: Create Daily Report
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/daily-reports
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "date": "2026-09-09",
+    "otherCosts": 500,
+    "dailyRevenue": 15000,
+    "progressPercentage": 40,
+    "workCompleted": "Foundation pouring completed for Block A",
+    "remarks": "Weather delay of 1 hour",
+    "attachmentUrls": ["https://s3.aws.com/bucket/photos/site-001.jpg"]
+  }
+}

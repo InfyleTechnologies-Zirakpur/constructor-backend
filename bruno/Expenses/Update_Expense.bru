@@ -1,0 +1,26 @@
+meta {
+  name: Update Expense (Add Attachment)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/expenses/:id
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{expenseId}}
+}
+
+body:json {
+  {
+    "attachmentUrl": "https://s3.aws.com/my-bucket/receipts/taxi-001.pdf",
+    "amount": 550
+  }
+}

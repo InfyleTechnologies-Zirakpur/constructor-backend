@@ -1,0 +1,26 @@
+meta {
+  name: Review Report
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/reports/:id/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{reportId}}
+}
+
+body:json {
+  {
+    "status": "reviewed",
+    "remarks": "Approved. Good progress."
+  }
+}

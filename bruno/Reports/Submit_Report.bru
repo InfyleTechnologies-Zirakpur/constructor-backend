@@ -1,0 +1,25 @@
+meta {
+  name: Submit Report
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/reports/:id/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{reportId}}
+}
+
+body:json {
+  {
+    "status": "submitted"
+  }
+}

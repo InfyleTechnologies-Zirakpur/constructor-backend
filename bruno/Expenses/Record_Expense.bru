@@ -1,0 +1,29 @@
+meta {
+  name: Record Expense
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/expenses
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+body:json {
+  {
+    "date": "2026-09-09",
+    "amount": 500,
+    "category": "Travel",
+    "description": "Taxi fare for site inspection",
+    "remarks": "Urgent visit"
+  }
+}
