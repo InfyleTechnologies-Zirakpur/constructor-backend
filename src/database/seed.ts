@@ -28,15 +28,26 @@ async function run() {
   ];
   const passwordHash = await bcrypt.hash('password123', 10);
 
+  const phoneNumbers: Record<string, string> = {
+    admin: '9000000001',
+    job_seeker: '9876543210',
+    company: '9000000003',
+    contractor: '9000000004',
+    site_engineer: '9000000005',
+  };
+
   console.log('Seeding users...');
   for (const role of roles) {
     const email = `${role}@infyle.com`;
     let user = await userRepository.findOne({ where: { email } });
     if (!user) {
       user = userRepository.create({
-        fullName: `${role.replace('_', ' ').toUpperCase()} User`,
+        fullName:
+          role === 'job_seeker'
+            ? 'Ravi Kumar'
+            : `${role.replace('_', ' ').toUpperCase()} User`,
         email,
-        phone: `123456789${roles.indexOf(role)}`,
+        phone: phoneNumbers[role] ?? `900000000${roles.indexOf(role)}`,
         passwordHash,
         role,
       });

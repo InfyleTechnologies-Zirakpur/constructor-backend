@@ -1,13 +1,14 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, Length, MinLength } from 'class-validator';
 
 export class ResetPasswordDto {
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
-  email: string;
+  @Length(10, 10, { message: 'Phone must be a valid 10-digit number' })
+  phone: string;
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
+  @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
   otp: string;
 
   @IsString()
