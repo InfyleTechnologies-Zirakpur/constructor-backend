@@ -71,3 +71,6 @@ ehthumbs.db
 Thumbs.db
 
 /src/generated/prisma
+
+# Firebase Credentials
+config/firebase-service-account.json

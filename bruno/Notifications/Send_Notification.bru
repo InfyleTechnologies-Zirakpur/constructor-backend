@@ -1,0 +1,25 @@
+meta {
+  name: Send Notification (Admin)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/notifications/send
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "title": "New Job Posted",
+    "body": "A new construction manager position is available in Chandigarh",
+    "event": "new_job",
+    "referenceId": "job-uuid-here",
+    "userIds": ["user-uuid-1", "user-uuid-2"]
+  }
+}

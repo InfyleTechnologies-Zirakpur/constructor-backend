@@ -1,0 +1,23 @@
+meta {
+  name: Send Announcement (Broadcast)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/notifications/send
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "title": "Platform Maintenance",
+    "body": "The platform will undergo maintenance tonight at 10 PM IST",
+    "event": "admin_announcement"
+  }
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Unregister Device (Logout)
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseUrl}}/notifications/unregister-device
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "token": "fcm-device-token-from-flutter"
+  }
+}
