@@ -69,10 +69,15 @@ The platform is divided into the following core modules inside `src/modules/`:
 - **Projects**: Core tracking of contractor projects, with strict contractor ownership isolation.
 - **Project-Sites**: Site creation and engineer assignment logic to tightly control access.
 - **Site-Engineers**: Profile management and assignment-based access rules for engineers.
-- **Jobs**: Job creation, publishing, editing, closing, and admin moderation features.
-
-*Upcoming Modules:*
-- **Attendance & Reports**: Daily worker check-ins, labor costs, material tracking, and profitability calculation.
+- **Jobs & Applications**: Job creation, publishing, applying, shortlisting, and admin moderation features.
+- **Calculators**: Specialized civil engineering tools for construction calculations.
+- **Attendance**: Daily worker and labor check-ins, attendance history, and cost generation.
+- **Materials**: Material master definitions, purchase requests, issues, consumption, and stock tracking.
+- **Expenses**: Tracking ad-hoc project and site-level expenses with file attachments.
+- **Reports**: Daily operational reports aggregating labor, material, and expense costs against daily revenue to compute server-side profitability.
+- **Notifications**: Device token management and event-driven FCM push notifications for all roles.
+- **Documents**: Presigned AWS S3 uploads and secure file references.
+- **Audit-Logs**: Security and important business activity trailing.
 
 ## 🔐 Security (RBAC)
 All endpoints are secured using a global `TransformInterceptor` and `AllExceptionsFilter`.
