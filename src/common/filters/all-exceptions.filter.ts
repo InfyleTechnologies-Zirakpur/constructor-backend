@@ -37,6 +37,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = errObj.message || 'Validation failed';
         errors = errObj.errors;
       } else if (Array.isArray(errObj.message)) {
+        message = errObj.message[0] || 'An error occurred';
+      } else {
         message = errObj.message || 'An error occurred';
       }
     }
