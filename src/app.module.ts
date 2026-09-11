@@ -28,6 +28,7 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
+import { WorkerAppModule } from './modules/worker-app/worker-app.module.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
@@ -55,6 +56,7 @@ import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
     NotificationsModule,
     DocumentsModule,
     AuditLogsModule,
+    WorkerAppModule,
   ],
   controllers: [
     AppController,
