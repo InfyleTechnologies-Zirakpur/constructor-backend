@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 
-import { ValidationPipe } from '@nestjs/common';
+import {
+  ValidationPipe,
+  ValidationError,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
@@ -16,6 +20,18 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
+      exceptionFactory: (errors: ValidationError[]) => {
+        const formattedErrors: Record<string, string[]> = {};
+        errors.forEach((error) => {
+          if (error.constraints) {
+            formattedErrors[error.property] = Object.values(error.constraints);
+          }
+        });
+        return new UnprocessableEntityException({
+          message: 'Validation failed',
+          errors: formattedErrors,
+        });
+      },
     }),
   );
 

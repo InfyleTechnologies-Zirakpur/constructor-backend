@@ -24,6 +24,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : { message: (exception as Error)?.message || 'Internal server error' };
 
+    console.log('Exception response:', errorResponse);
+
     let message: string;
     let errors: Record<string, string[]> | undefined;
 
@@ -31,17 +33,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = errorResponse;
     } else {
       const errObj = errorResponse as any;
-      // Handle class-validator errors (array of messages)
-      if (Array.isArray(errObj.message)) {
-        message = 'Validation failed';
-        errors = {};
-        for (const msg of errObj.message) {
-          // Try to extract field name from message like "phone must be..."
-          const field = msg.split(' ')[0] ?? 'general';
-          if (!errors[field]) errors[field] = [];
-          errors[field].push(msg);
-        }
-      } else {
+      if (errObj.errors) {
+        message = errObj.message || 'Validation failed';
+        errors = errObj.errors;
+      } else if (Array.isArray(errObj.message)) {
         message = errObj.message || 'An error occurred';
       }
     }
