@@ -24,7 +24,21 @@ export class Job {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   compensation: number;
 
+  /** Daily pay in local currency (integer), used by the Flutter worker app. */
+  @Column({ type: 'int', default: 0 }) dailyPay: number;
+
   @Column({ type: 'int', default: 1 }) workforceRequired: number;
+
+  /** e.g. 'Full-time', 'Contract', 'Daily Wage' */
+  @Column({ type: 'varchar', length: 50, default: 'Full-time' })
+  projectType: string;
+
+  /** e.g. 'Fresher', 'Experienced', 'Any' */
+  @Column({ type: 'varchar', length: 50, default: 'Any' })
+  experienceLevel: string;
+
+  /** JSON array of requirement strings for the Flutter detail sheet. */
+  @Column('simple-array', { nullable: true }) requirements: string[];
 
   @Column({
     type: 'varchar',

@@ -28,18 +28,30 @@ export class JobsController {
     return { message: 'Job created successfully', data: job };
   }
 
+  /**
+   * GET /jobs — List jobs.
+   * For job_seekers: returns Flutter-compatible shape { items, total }.
+   * For other roles: returns standard paginated shape.
+   */
   @Get()
   @Roles('admin', 'company', 'job_seeker')
   async list(
     @Req() req: any,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    @Query('location') location?: string,
+    @Query('minDailyPay') minDailyPay?: string,
+    @Query('skill') skill?: string,
+    @Query('projectType') projectType?: string,
+    @Query('experienceLevel') experienceLevel?: string,
   ) {
     return this.jobsService.list(
       Number(page),
       Number(limit),
       req.user.role,
       req.user.id,
+      { search, location, minDailyPay, skill, projectType, experienceLevel },
     );
   }
 

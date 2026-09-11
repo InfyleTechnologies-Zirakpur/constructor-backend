@@ -6,9 +6,20 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from './entities/job.entity.js';
+import { SavedJob } from './entities/saved-job.entity.js';
+import { Application } from '../applications/entities/application.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
 import { CreateJobDto } from './dto/create-jobs.dto.js';
 import { UpdateJobDto, ModerateJobDto } from './dto/update-jobs.dto.js';
+
+interface JobFilters {
+  search?: string;
+  location?: string;
+  minDailyPay?: string;
+  skill?: string;
+  projectType?: string;
+  experienceLevel?: string;
+}
 
 @Injectable()
 export class JobsService {
@@ -16,6 +27,10 @@ export class JobsService {
     @InjectRepository(Job) private readonly jobRepository: Repository<Job>,
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
+    @InjectRepository(SavedJob)
+    private readonly savedJobRepository: Repository<SavedJob>,
+    @InjectRepository(Application)
+    private readonly applicationRepository: Repository<Application>,
   ) {}
 
   /**
@@ -61,10 +76,18 @@ export class JobsService {
    * List jobs based on role.
    * - Admin: sees all jobs (paginated).
    * - Company: sees only their own jobs.
-   * - Job Seeker: sees only `published` jobs.
+   * - Job Seeker: sees only `published` jobs, with Flutter-compatible shape.
    */
-  async list(page: number, limit: number, role: string, userId: string) {
-    const query = this.jobRepository.createQueryBuilder('job');
+  async list(
+    page: number,
+    limit: number,
+    role: string,
+    userId: string,
+    filters?: JobFilters,
+  ) {
+    const query = this.jobRepository
+      .createQueryBuilder('job')
+      .leftJoinAndSelect('job.company', 'company');
 
     if (role === 'company') {
       const company = await this.companyRepository.findOne({
@@ -73,25 +96,80 @@ export class JobsService {
       if (company) {
         query.where('job.companyId = :companyId', { companyId: company.id });
       } else {
-        return { data: [], total: 0 };
+        return { items: [], total: 0 };
       }
     } else if (role === 'job_seeker') {
       query.where('job.status = :status', { status: 'published' });
     }
 
+    // Apply Flutter search filters
+    if (filters?.search) {
+      query.andWhere(
+        '(LOWER(job.title) LIKE :search OR LOWER(job.description) LIKE :search)',
+        { search: `%${filters.search.toLowerCase()}%` },
+      );
+    }
+    if (filters?.location) {
+      query.andWhere('LOWER(job.location) LIKE :location', {
+        location: `%${filters.location.toLowerCase()}%`,
+      });
+    }
+    if (filters?.minDailyPay) {
+      query.andWhere('job.dailyPay >= :minPay', {
+        minPay: Number(filters.minDailyPay),
+      });
+    }
+    if (filters?.projectType) {
+      query.andWhere('job.projectType = :projectType', {
+        projectType: filters.projectType,
+      });
+    }
+    if (filters?.experienceLevel) {
+      query.andWhere('job.experienceLevel = :experienceLevel', {
+        experienceLevel: filters.experienceLevel,
+      });
+    }
+
     query.orderBy('job.createdAt', 'DESC');
     query.skip((page - 1) * limit).take(limit);
 
-    const [data, total] = await query.getManyAndCount();
+    const [jobs, total] = await query.getManyAndCount();
 
-    return { data, total, page, limit };
+    // For job_seeker: return Flutter-compatible shape with saved/applied flags
+    if (role === 'job_seeker') {
+      const savedJobs = await this.savedJobRepository.find({
+        where: { userId },
+      });
+      const savedJobIds = new Set(savedJobs.map((s) => s.jobId));
+
+      const applications = await this.applicationRepository.find({
+        where: { userId },
+      });
+      const appliedJobIds = new Set(applications.map((a) => a.jobId));
+
+      const items = jobs.map((job) => ({
+        id: job.id,
+        title: job.title,
+        company: job.company?.name ?? 'Unknown',
+        location: job.location,
+        dailyPay: job.dailyPay || Number(job.compensation) || 0,
+        skills: job.skills ?? [],
+        description: job.description ?? '',
+        requirements: job.requirements ?? [],
+        saved: savedJobIds.has(job.id),
+        applied: appliedJobIds.has(job.id),
+        projectType: job.projectType ?? 'Full-time',
+        experienceLevel: job.experienceLevel ?? 'Any',
+      }));
+
+      return { items, total };
+    }
+
+    return { data: jobs, total, page, limit };
   }
 
   /**
    * Get job by ID.
-   * - Job Seeker: can only view if `published`.
-   * - Company: can only view if they own it.
-   * - Admin: can view any.
    */
   async getById(id: string, role: string, userId: string): Promise<Job> {
     const job = await this.jobRepository.findOne({

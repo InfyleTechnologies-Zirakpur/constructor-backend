@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JobsService } from '../jobs.service.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Job } from '../entities/job.entity.js';
+import { SavedJob } from '../entities/saved-job.entity.js';
+import { Application } from '../../applications/entities/application.entity.js';
 import { Company } from '../../companies/entities/company.entity.js';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
@@ -9,6 +11,7 @@ import { Repository } from 'typeorm';
 const mockCompany = {
   id: 'company-1',
   userId: 'user-1',
+  name: 'Test Company',
 };
 
 const mockJob = {
@@ -16,6 +19,13 @@ const mockJob = {
   title: 'Test Job',
   companyId: 'company-1',
   status: 'published',
+  dailyPay: 850,
+  projectType: 'Full-time',
+  experienceLevel: 'Any',
+  skills: ['Electrical'],
+  description: 'Test description',
+  requirements: ['Requirement 1'],
+  company: mockCompany,
 };
 
 describe('JobsService', () => {
@@ -34,7 +44,9 @@ describe('JobsService', () => {
             save: vi.fn().mockResolvedValue(mockJob),
             findOne: vi.fn().mockResolvedValue(mockJob),
             createQueryBuilder: vi.fn().mockReturnValue({
+              leftJoinAndSelect: vi.fn().mockReturnThis(),
               where: vi.fn().mockReturnThis(),
+              andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               skip: vi.fn().mockReturnThis(),
               take: vi.fn().mockReturnThis(),
@@ -46,6 +58,18 @@ describe('JobsService', () => {
           provide: getRepositoryToken(Company),
           useValue: {
             findOne: vi.fn().mockResolvedValue(mockCompany),
+          },
+        },
+        {
+          provide: getRepositoryToken(SavedJob),
+          useValue: {
+            find: vi.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: getRepositoryToken(Application),
+          useValue: {
+            find: vi.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -90,12 +114,16 @@ describe('JobsService', () => {
 
     it('should list only company jobs for company', async () => {
       const result = await service.list(1, 10, 'company', 'user-1');
-      expect(result.data).toHaveLength(1);
+      expect((result as any).data).toHaveLength(1);
     });
 
-    it('should list published jobs for job_seeker', async () => {
+    it('should list published jobs for job_seeker with Flutter shape', async () => {
       const result = await service.list(1, 10, 'job_seeker', 'seeker-1');
-      expect(result.data).toHaveLength(1);
+      expect((result as any).items).toHaveLength(1);
+      const item = (result as any).items[0];
+      expect(item.saved).toBe(false);
+      expect(item.applied).toBe(false);
+      expect(item.company).toBe('Test Company');
     });
   });
 
