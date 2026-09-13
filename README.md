@@ -88,3 +88,6 @@ To protect an endpoint, simply use the custom decorators:
 @Post()
 async createProject() { ... }
 ```
+
+## 🚀 Continuous Integration
+This repository is continuously updated and pushed to remote to ensure all features are safely backed up.
