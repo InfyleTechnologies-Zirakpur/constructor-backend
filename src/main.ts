@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
 import {
@@ -16,6 +17,13 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
+    const config = new DocumentBuilder()
+    .setTitle('Construction API')
+    .setVersion('1.0')
+    .addBearerAuth() // lets you paste your JWT once
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

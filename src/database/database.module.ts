@@ -19,11 +19,13 @@ import { Document } from '../modules/documents/entities/document.entity.js';
 import { Notification } from '../modules/notifications/entities/notification.entity.js';
 import { AuditLog } from '../modules/audit-logs/entities/audit-log.entity.js';
 import { DeviceToken } from '../modules/notifications/entities/device-token.entity.js';
-
+import * as fs from 'fs';
+import * as path from 'path';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 const databaseUrl =
   process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5432/construction_db';
-
+if (!databaseUrl) throw new Error('DATABASE_URL is not set');
 const entities = [
   User,
   Company,
@@ -48,15 +50,36 @@ const entities = [
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: databaseUrl,
-      entities,
-      synchronize: process.env.NODE_ENV !== 'production',
-      logging: process.env.NODE_ENV === 'development',
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const url = config.get<string>('DATABASE_URL');
+        if (!url) throw new Error('DATABASE_URL is not set');
+
+        // FIX: synchronize:false — auto-ALTER on every `npm start` was
+        // spamming "SELECT ... ALTER TABLE users ADD ..." and hanging on CockroachDB.
+        // Use migrations for schema changes instead.
+        const shouldSync =
+          process.env.DB_SYNC === 'true' ||
+          process.env.TYPEORM_SYNC === 'true';
+        return {
+          type: 'postgres' as const,
+          url,
+          ssl: {
+            rejectUnauthorized: true,
+            ca: fs
+              .readFileSync(path.join(process.env.APPDATA!, 'postgresql', 'root.crt'))
+              .toString(),
+          },
+          entities,
+          synchronize: shouldSync, // default false — set DB_SYNC=true only for one-off local init
+          logging: false, // was `development` → flooded terminal with query: SELECT ... / ALTER TABLE
+        };
+      },
     }),
     TypeOrmModule.forFeature(entities),
   ],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

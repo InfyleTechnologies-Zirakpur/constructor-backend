@@ -13,16 +13,25 @@ export class RegisterUserDto {
   @IsNotEmpty()
   fullName: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(8)
-  password: string;
+  password?: string;
 
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @IsOptional()
+  policy?: Record<string, any>;
 
   @IsEnum([
     'admin',

@@ -119,6 +119,33 @@ export class ProjectsService {
   }
 
   /**
+   * Stats for dashboard top cards — Onsite-style APPROV/MATERIAL/TO DO
+   * Contractor scoped, admin global.
+   */
+  async getStats(userId?: string): Promise<{ total: number; draft: number; active: number; completed: number; sites: number; budget: number }> {
+    let contractorId: string | undefined;
+    if (userId) {
+      const contractor = await this.contractorRepository.findOne({ where: { userId } });
+      if (!contractor) return { total: 0, draft: 0, active: 0, completed: 0, sites: 0, budget: 0 };
+      contractorId = contractor.id;
+    }
+    const qb = this.projectRepository.createQueryBuilder('project').leftJoin('project.sites', 'site');
+    if (contractorId) qb.where('project.contractorId = :contractorId', { contractorId });
+    const total = await qb.getCount();
+    const draft = await qb.clone().andWhere('project.status = :s', { s: 'draft' }).getCount();
+    const active = await qb.clone().andWhere('project.status IN (:...s)', { s: ['active','in_progress'] }).getCount();
+    const completed = await qb.clone().andWhere('project.status = :s', { s: 'completed' }).getCount();
+    const sitesQb = this.projectRepository.manager.createQueryBuilder().from('project_sites', 'ps');
+    if (contractorId) sitesQb.innerJoin('projects', 'p', 'p.id = ps."projectId"').where('p."contractorId" = :contractorId', { contractorId });
+    const sites = await sitesQb.getCount();
+    // budget sum
+    const sumQb = this.projectRepository.createQueryBuilder('project').select('COALESCE(SUM(project.budget),0)', 'sum');
+    if (contractorId) sumQb.where('project.contractorId = :contractorId', { contractorId });
+    const raw = await sumQb.getRawOne();
+    return { total, draft, active, completed, sites, budget: Number(raw?.sum ?? 0) };
+  }
+
+  /**
    * Admin lists all projects with pagination and optional status filter.
    */
   async findAll(

@@ -77,4 +77,11 @@ export class AuthController {
   ) {
     return this.authService.refreshToken(userId, dto);
   }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  async logout(@Req() req: any) {
+    return this.authService.logout(req.user.id);
+  }
 }

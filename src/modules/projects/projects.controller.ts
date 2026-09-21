@@ -15,11 +15,15 @@ import { UpdateProjectDto } from './dto/update-projects.dto.js';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { AuthorizationService } from '../authorization/authorization.service.js';
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly authz: AuthorizationService,
+  ) {}
 
   /**
    * POST /projects — Contractor creates a new project.
@@ -28,8 +32,20 @@ export class ProjectsController {
   @Post()
   @Roles('contractor', 'admin')
   async create(@Req() req: any, @Body() dto: CreateProjectDto) {
+    this.authz.assertCan('createProject', req.user.role);
     const project = await this.projectsService.create(req.user.id, dto);
     return { message: 'Project created successfully', data: project };
+  }
+
+  /**
+   * GET /projects/stats — Onsite-style dashboard top cards (APPROV/MATERIAL/TO DO)
+   * Contractor gets own stats, admin gets global.
+   */
+  @Get('stats')
+  @Roles('contractor', 'admin', 'site_engineer')
+  async stats(@Req() req: any) {
+    const isAdmin = req.user.role === 'admin';
+    return this.projectsService.getStats(isAdmin ? undefined : req.user.id);
   }
 
   /**

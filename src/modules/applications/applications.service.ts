@@ -62,7 +62,10 @@ export class ApplicationsService {
       availability: dto.availability,
     });
 
-    return this.applicationRepository.save(application);
+    const saved = await this.applicationRepository.save(application);
+    // Company sees this via GET /applications?role=company — now includes seeker docs/skills/city
+    // TODO: notificationsService.notifyCompany(job.companyId, saved.id) via BullMQ §12
+    return saved;
   }
 
   /**
@@ -110,7 +113,8 @@ export class ApplicationsService {
 
     const [data, total] = await query.getManyAndCount();
 
-    // Sanitize user data — strip passwordHash, otpHash, refreshTokenHash
+    // Sanitize user data — strip hashes, expose seeker/company-needed fields
+    // company needs: skills, preferred location (city), salary, docs, experience/education, verified
     const sanitized = data.map((app) => ({
       ...app,
       user: app.user
@@ -121,6 +125,15 @@ export class ApplicationsService {
             phone: app.user.phone,
             role: app.user.role,
             avatarUrl: app.user.avatarUrl,
+            city: (app.user as any).city ?? null, // preferred location
+            skills: (app.user as any).skills ?? [],
+            salaryExpectation: (app.user as any).salaryExpectation ?? null,
+            experience: (app.user as any).experience ?? [],
+            education: (app.user as any).education ?? [],
+            documents: (app.user as any).documents ?? [],
+            phoneVerified: (app.user as any).phoneVerified ?? false,
+            isVerified: (app.user as any).isVerified ?? false,
+            isBlocked: (app.user as any).isBlocked ?? false,
           }
         : undefined,
     }));

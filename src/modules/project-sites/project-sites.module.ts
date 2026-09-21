@@ -7,6 +7,7 @@ import { Project } from '../projects/entities/project.entity.js';
 import { Contractor } from '../contractors/entities/contractor.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { AuthorizationModule } from '../authorization/authorization.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer
       User,
       SiteEngineerAssignment,
     ]),
+    AuthorizationModule,
   ],
   controllers: [ProjectSitesController],
   providers: [ProjectSitesService],

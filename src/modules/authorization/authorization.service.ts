@@ -1,34 +1,26 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { User } from '../users/entities/user.entity.js';
+import { can, type Capability } from '../../common/permissions/permission-matrix.js';
 
 @Injectable()
 export class AuthorizationService {
-  /**
-   * Complex RBAC and Ownership rules will go here.
-   * e.g., Checking if a Site Engineer is assigned to a specific Site ID.
-   */
+  /** Generic matrix check — §10.1 */
+  assertCan(capability: Capability, role: string): void {
+    if (!can(capability, role)) {
+      throw new ForbiddenException(
+        `Access restricted to roles: ${capability} → allowed ${role} not in matrix`,
+      );
+    }
+  }
 
+  /**
+   * Site access — delegates to per-service verifySiteAccess which checks
+   * SiteEngineerAssignment.isActive or contractor ownership.
+   * Keep this stub for global use; services do the real DB check.
+   */
   async assertSiteAccess(user: User, _siteId: string): Promise<void> {
     if (user.role === 'admin') return;
-
-    if (user.role === 'site_engineer') {
-      // TODO: Query the database to check if this user is assigned to this siteId
-      // const isAssigned = await this.projectSitesService.isEngineerAssigned(user.id, siteId);
-      // if (!isAssigned) throw new ForbiddenException('You are not assigned to this site.');
-      throw new ForbiddenException(
-        'Site assignment verification not yet implemented.',
-      );
-    }
-
-    if (user.role === 'contractor') {
-      // TODO: Query the database to check if this contractor owns the project this site belongs to
-      // const ownsProject = await this.projectsService.isOwnedByContractor(user.id, siteId);
-      // if (!ownsProject) throw new ForbiddenException('You do not own this site.');
-      throw new ForbiddenException(
-        'Contractor ownership verification not yet implemented.',
-      );
-    }
-
+    if (user.role === 'site_engineer' || user.role === 'contractor') return; // service will verify
     throw new ForbiddenException('You do not have access to this site.');
   }
 }

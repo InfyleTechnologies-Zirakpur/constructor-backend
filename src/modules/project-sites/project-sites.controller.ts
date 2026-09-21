@@ -16,11 +16,25 @@ import { AssignEngineerDto } from './dto/assign-engineer.dto.js';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { AuthorizationService } from '../authorization/authorization.service.js';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProjectSitesController {
-  constructor(private readonly projectSitesService: ProjectSitesService) {}
+  constructor(
+    private readonly projectSitesService: ProjectSitesService,
+    private readonly authz: AuthorizationService,
+  ) {}
+
+  /**
+   * GET /sites/my-sites — Site Engineer gets their assigned sites. Must be before :id to avoid capture.
+   */
+  @Get('sites/my-sites')
+  @Roles('site_engineer')
+  async findMySites(@Req() req: any) {
+    const data = await this.projectSitesService.findMySites(req.user.id);
+    return { data };
+  }
 
   /**
    * POST /projects/:projectId/sites — Create a site under a project.
@@ -32,6 +46,7 @@ export class ProjectSitesController {
     @Param('projectId') projectId: string,
     @Body() dto: CreateProjectSiteDto,
   ) {
+    this.authz.assertCan('createSite', req.user.role);
     const site = await this.projectSitesService.create(
       projectId,
       req.user.id,
@@ -118,13 +133,4 @@ export class ProjectSitesController {
     return { message: 'Engineer removed from site' };
   }
 
-  /**
-   * GET /sites/my-sites — Site Engineer gets their assigned sites.
-   */
-  @Get('sites/my-sites')
-  @Roles('site_engineer')
-  async findMySites(@Req() req: any) {
-    const data = await this.projectSitesService.findMySites(req.user.id);
-    return { data };
-  }
 }
