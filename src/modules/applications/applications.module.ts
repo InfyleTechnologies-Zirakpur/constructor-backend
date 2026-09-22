@@ -5,9 +5,13 @@ import { ApplicationsService } from './applications.service.js';
 import { Application } from './entities/application.entity.js';
 import { Job } from '../jobs/entities/job.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
+import { ConversationsModule } from '../conversations/conversations.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Application, Job, Company])],
+  imports: [
+    TypeOrmModule.forFeature([Application, Job, Company]),
+    ConversationsModule,
+  ],
   controllers: [ApplicationsController],
   providers: [ApplicationsService],
   exports: [ApplicationsService],

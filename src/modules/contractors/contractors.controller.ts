@@ -18,11 +18,15 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { AuthorizationService } from '../authorization/authorization.service.js';
 
 @Controller('contractors')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ContractorsController {
-  constructor(private readonly contractorsService: ContractorsService) {}
+  constructor(
+    private readonly contractorsService: ContractorsService,
+    private readonly authz: AuthorizationService,
+  ) {}
 
   @Post()
   @Roles('contractor', 'admin')

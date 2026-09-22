@@ -17,11 +17,39 @@ export class Company {
 
   @Column({ nullable: true }) registrationNumber?: string;
 
+  @Column({ nullable: true }) gstNumber?: string;
+
+  @Column({ nullable: true }) panNumber?: string;
+
   @Column() contactEmail: string;
 
   @Column() contactPhone: string;
 
+  @Column({ nullable: true }) alternatePhone?: string;
+
+  @Column({ nullable: true }) website?: string;
+
   @Column({ type: 'text', nullable: true }) address?: string;
+
+  @Column({ nullable: true }) city?: string;
+
+  @Column({ nullable: true }) state?: string;
+
+  @Column({ nullable: true }) pincode?: string;
+
+  @Column({ nullable: true }) businessType?: string;
+
+  @Column({ type: 'int', nullable: true }) yearEstablished?: number;
+
+  @Column({ nullable: true }) teamSizeRange?: string;
+
+  @Column('jsonb', { nullable: true, default: [] }) specializations?: string[];
+
+  @Column('jsonb', { nullable: true, default: [] }) operationalAreas?: string[];
+
+  @Column({ nullable: true }) logoUrl?: string;
+
+  @Column({ type: 'text', nullable: true }) description?: string;
 
   @Column({
     type: 'varchar',

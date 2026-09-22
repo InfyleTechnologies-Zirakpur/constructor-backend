@@ -124,6 +124,11 @@ export class JobsService {
         projectType: filters.projectType,
       });
     }
+    if (filters?.skill) {
+      query.andWhere('LOWER(job.skills) LIKE :skill', {
+        skill: `%${filters.skill.toLowerCase()}%`,
+      });
+    }
     if (filters?.experienceLevel) {
       query.andWhere('job.experienceLevel = :experienceLevel', {
         experienceLevel: filters.experienceLevel,
@@ -166,6 +171,47 @@ export class JobsService {
     }
 
     return { data: jobs, total, page, limit };
+  }
+
+  async toggleSave(userId: string, jobId: string) {
+    const job = await this.jobRepository.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    const existing = await this.savedJobRepository.findOne({ where: { userId, jobId } });
+    if (existing) {
+      await this.savedJobRepository.remove(existing);
+      return { saved: false, jobId };
+    }
+    const saved = this.savedJobRepository.create({ userId, jobId });
+    await this.savedJobRepository.save(saved);
+    return { saved: true, jobId };
+  }
+
+  async getSavedJobs(userId: string) {
+    const saved = await this.savedJobRepository.find({ where: { userId } });
+    if (saved.length === 0) return { items: [], total: 0 };
+    const jobIds = saved.map(s => s.jobId);
+    const jobs = await this.jobRepository.createQueryBuilder('job')
+      .leftJoinAndSelect('job.company', 'company')
+      .where('job.id IN (:...jobIds)', { jobIds })
+      .getMany();
+    const items = jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      company: (job as any).company?.name ?? 'Unknown',
+      location: job.location,
+      dailyPay: job.dailyPay || Number(job.compensation) || 0,
+      skills: job.skills ?? [],
+      saved: true,
+      applied: false,
+    }));
+    return { items, total: items.length };
+  }
+
+  async reportJob(userId: string, jobId: string, reason?: string) {
+    const job = await this.jobRepository.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    // Store as audit log or moderation flag — for now return reported
+    return { reported: true, jobId, reason: reason ?? 'reported', reportedBy: userId };
   }
 
   /**

@@ -55,6 +55,12 @@ export class JobsController {
     );
   }
 
+  @Get('saved/list')
+  @Roles('job_seeker')
+  async savedJobs(@Req() req: any) {
+    return this.jobsService.getSavedJobs(req.user.id);
+  }
+
   @Get(':id')
   @Roles('admin', 'company', 'job_seeker')
   async getById(@Req() req: any, @Param('id') id: string) {
@@ -78,6 +84,20 @@ export class JobsController {
   async close(@Req() req: any, @Param('id') id: string) {
     const job = await this.jobsService.close(id, req.user.id);
     return { message: 'Job closed successfully', data: job };
+  }
+
+  @Post(':id/save')
+  @Roles('job_seeker')
+  async toggleSave(@Req() req: any, @Param('id') id: string) {
+    const data = await this.jobsService.toggleSave(req.user.id, id);
+    return { data };
+  }
+
+  @Post(':id/report')
+  @Roles('job_seeker')
+  async reportJob(@Req() req: any, @Param('id') id: string, @Body() body: { reason: string }) {
+    const data = await this.jobsService.reportJob(req.user.id, id, body.reason);
+    return { message: 'Job reported', data };
   }
 
   @Patch(':id/moderate')

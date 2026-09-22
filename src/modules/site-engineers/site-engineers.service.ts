@@ -110,6 +110,21 @@ export class SiteEngineersService {
     return { data: Array.from(engineerMap.values()) };
   }
 
+  async getStats(userId: string, role: string) {
+    const assignments = await this.assignmentRepository.find({
+      where: { userId, isActive: true },
+      relations: { site: true },
+    });
+    if (role === 'site_engineer') {
+      return {
+        assignedSites: assignments.length,
+        sites: assignments.map(a => ({ id: a.site.id, name: a.site.name, location: a.site.location })),
+      };
+    }
+    // contractor/admin: reuse same but broader
+    return { assignedSites: assignments.length, sites: assignments.map(a => a.site) };
+  }
+
   /**
    * Get an engineer's profile and active assignments.
    * Access is constrained: Admin can view any, Contractor can view if the engineer is assigned to their sites, Engineer can view themselves.

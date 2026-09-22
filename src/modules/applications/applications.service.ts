@@ -11,6 +11,7 @@ import { Job } from '../jobs/entities/job.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
 import { CreateApplicationDto } from './dto/create-applications.dto.js';
 import { UpdateApplicationStatusDto } from './dto/update-applications.dto.js';
+import { ConversationsService } from '../conversations/conversations.service.js';
 
 @Injectable()
 export class ApplicationsService {
@@ -23,6 +24,8 @@ export class ApplicationsService {
 
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
+
+    private readonly conversationsService: ConversationsService,
   ) {}
 
   /**
@@ -63,8 +66,20 @@ export class ApplicationsService {
     });
 
     const saved = await this.applicationRepository.save(application);
-    // Company sees this via GET /applications?role=company — now includes seeker docs/skills/city
-    // TODO: notificationsService.notifyCompany(job.companyId, saved.id) via BullMQ §12
+    // Create conversation between company and seeker
+    const jobWithCompany = await this.jobRepository.findOne({
+      where: { id: jobId },
+      relations: { company: true },
+    });
+    if (jobWithCompany?.company) {
+      await this.conversationsService.findOrCreate(
+        jobWithCompany.company.userId,
+        userId,
+        jobId,
+        saved.id,
+      );
+    }
+    // Company sees this via GET /applications (role=company) — now includes seeker docs/skills/city
     return saved;
   }
 
@@ -200,7 +215,25 @@ export class ApplicationsService {
       application.rejectionReason = dto.rejectionReason;
     }
 
-    return this.applicationRepository.save(application);
+    const saved = await this.applicationRepository.save(application);
+
+    // Create conversation when shortlisted/accepted — triggers interview invite
+    if (dto.status === 'shortlisted' || dto.status === 'accepted') {
+      const job = await this.jobRepository.findOne({
+        where: { id: application.jobId },
+        relations: { company: true },
+      });
+      if (job?.company) {
+        await this.conversationsService.findOrCreate(
+          job.company.userId,
+          application.userId,
+          application.jobId,
+          application.id,
+        );
+      }
+    }
+
+    return saved;
   }
 
   /**

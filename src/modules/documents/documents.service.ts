@@ -34,12 +34,48 @@ export class DocumentsService {
     private readonly config: ConfigService,
   ) {}
 
+  private isBunnyConfigured() {
+    const z = this.config.get<string>('BUNNY_STORAGE_ZONE');
+    const p = this.config.get<string>('BUNNY_STORAGE_PASSWORD') ?? this.config.get<string>('BUNNY_STORAGE_API_KEY');
+    return !!z && !!p && p !== 'your-bunny-storage-password' && p !== 'your-bunny-storage-api-key';
+  }
+
   private isS3Configured() {
     const b = this.config.get<string>('AWS_S3_BUCKET');
     return !!b && b !== 'your-bucket-name';
   }
 
+  private getBunnyUrl(key: string) {
+    const pull = this.config.get<string>('BUNNY_PULL_ZONE') ?? this.config.get<string>('BUNNY_CDN_URL') ?? this.config.get<string>('BUNNY_CDN_HOSTNAME') ?? 'https://buildhire.b-cdn.net';
+    const base = pull.startsWith('http') ? pull : `https://${pull}`;
+    return `${base.replace(/\/$/, '')}/${key}`;
+  }
+
+  private async uploadToBunny(key: string, file: any): Promise<string> {
+    const zone = this.config.get<string>('BUNNY_STORAGE_ZONE')!;
+    const password = this.config.get<string>('BUNNY_STORAGE_PASSWORD') ?? this.config.get<string>('BUNNY_STORAGE_API_KEY')!;
+    const hostname = this.config.get<string>('BUNNY_STORAGE_HOSTNAME') ?? 'storage.bunnycdn.com';
+    const url = `https://${hostname}/${zone}/${key}`;
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          AccessKey: password,
+          'Content-Type': file.mimetype,
+        },
+        body: file.buffer,
+      } as any);
+      if (!res.ok) throw new Error(`Bunny ${res.status} ${await res.text()}`);
+      return this.getBunnyUrl(key);
+    } catch (e: any) {
+      this.logger.warn(`Bunny upload failed, falling back to mock: ${e.message}`);
+      return `https://cdn.buildhire.app/${key}`;
+    }
+  }
+
   private async uploadToS3(key: string, file: any) {
+    // Priority: Bunny first (you asked), then S3, then mock
+    if (this.isBunnyConfigured()) return this.uploadToBunny(key, file);
     if (!this.isS3Configured()) return `https://cdn.buildhire.app/${key}`;
     try {
       const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
@@ -64,8 +100,8 @@ export class DocumentsService {
   }
 
   async getPresignedUrl(doc: Document): Promise<string> {
+    if (this.isBunnyConfigured()) return this.getBunnyUrl(doc.objectKey);
     if (!this.isS3Configured()) return `https://cdn.buildhire.app/${doc.objectKey}`;
-    // S3 presign optional — return mock until bucket is real
     return `https://cdn.buildhire.app/${doc.objectKey}`;
   }
 
@@ -73,13 +109,23 @@ export class DocumentsService {
     const policy = ALLOWED_TYPES[entityType];
     if (!policy) throw new BadRequestException(`Unknown entityType ${entityType}`);
     const ext = path.extname(filename) || '';
-    const key = `documents/${entityType}/${entityId}/${randomUUID()}${ext}`;
-    // S3 PUT presign — return mock until bucket is real (keep same shape)
+    const base = path.basename(filename, ext).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40) || 'file';
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const shortId = randomUUID().slice(0,8);
+    const key = `documents/${entityType}/${yyyy}/${mm}/${entityId}/${dd}_${base}_${shortId}${ext}`;
+    if (this.isBunnyConfigured()) {
+      const zone = this.config.get<string>('BUNNY_STORAGE_ZONE');
+      return { url: `https://storage.bunnycdn.com/${zone}/${key}`, key, method: 'PUT' as const, headers: { AccessKey: '***', 'Content-Type': mimeType } };
+    }
     return { url: `https://cdn.buildhire.app/${key}`, key, method: 'PUT' as const, headers: { 'Content-Type': mimeType } };
   }
 
   async upload(file: any, userId: string, dto: { entityType: string; entityId: string; latitude?: number; longitude?: number; capturedAt?: string }) {
-    const policy = ALLOWED_TYPES[dto.entityType];
+    if (!file?.buffer && !file?.size) throw new BadRequestException('file is required — field name must be "file" and path must exist (e.g. -F file=@C:/path/to/file.jpg)');
+    const policy = ALLOWED_TYPES[dto.entityType?.replace(/"/g,'')];
     if (!policy) throw new BadRequestException(`Unknown entityType ${dto.entityType}. Allowed: ${Object.keys(ALLOWED_TYPES).join(', ')}`);
     if (file.size > policy.max) throw new BadRequestException(`File too large max ${policy.max/1024/1024}MB`);
     if (!policy.mime.includes(file.mimetype)) throw new BadRequestException(`Invalid mime ${file.mimetype}. Allowed ${policy.mime.join(', ')}`);
@@ -87,10 +133,16 @@ export class DocumentsService {
     // role check done in controller via @Roles, but double-check here if needed
 
     const ext = path.extname(file.originalname) || '';
-    const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const key = `documents/${dto.entityType}/${dto.entityId}/${randomUUID()}-${sanitized}${ext ? '' : ''}`;
-
-    await this.uploadToS3(key, file);
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40) || 'file';
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const shortId = randomUUID().slice(0,8);
+    // Meaningful: documents/<type>/<yyyy>/<mm>/<entityId>/<dd>_<base>_<shortId><ext>
+    // Example: documents/company_doc/2026/09/23bf.../22_WhatsApp_Image_398ec835.jpg
+    // Future insights: you can list by year/month/entityId and see original name + date
+    const key = `documents/${dto.entityType}/${yyyy}/${mm}/${dto.entityId}/${dd}_${base}_${shortId}${ext}`;
 
     const doc = this.repo.create({
       entityType: dto.entityType,

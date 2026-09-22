@@ -1,0 +1,1289 @@
+{
+  "info": {
+    "name": "Construction Project",
+    "description": "Every API built today — Auth (global + Firebase OTP, single-session) + Media (Bunny) + Contractors/Companies/Projects/Sites/Site Engineers + Jobs/Applications + Daily Ops (labour/material/expenses/reports) + Calculators + Chat. Import: Postman → Import → File. Set {{baseUrl}}, {{TOKEN}} (from login), {{companyId}}, {{projectId}}, {{siteId}}, {{jobId}}, {{applicationId}}. All guarded AuthGuard + RolesGuard + permission-matrix + verifySiteAccess.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "TOKEN",
+      "value": "eyJ...paste accessToken"
+    },
+    {
+      "key": "companyId",
+      "value": "<companyId>"
+    },
+    {
+      "key": "contractorId",
+      "value": "<contractorId>"
+    },
+    {
+      "key": "projectId",
+      "value": "<projectId>"
+    },
+    {
+      "key": "siteId",
+      "value": "<siteId>"
+    },
+    {
+      "key": "jobId",
+      "value": "<jobId>"
+    },
+    {
+      "key": "applicationId",
+      "value": "<applicationId>"
+    },
+    {
+      "key": "documentId",
+      "value": "<documentId>"
+    },
+    {
+      "key": "userId",
+      "value": "<userId>"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Auth — Global",
+      "item": [
+        {
+          "name": "Register — Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bharat Constructions\",\n  \"email\": \"hr@bharat.com\",\n  \"password\": \"Bharat@123\",\n  \"role\": \"company\"\n}"
+            },
+            "description": "Company/Contractor/Site Engineer/Admin — same endpoint, role gates. Seeker can also use email. → {user, accessToken, refreshToken}"
+          }
+        },
+        {
+          "name": "Login — Email+Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hr@bharat.com\",\n  \"password\": \"Bharat@123\"\n}"
+            },
+            "description": "Checks isBlocked/isActive/lockout (5 fails→15m), bumps tokenVersion → other device kicked. Copy accessToken to {{TOKEN}}."
+          }
+        },
+        {
+          "name": "Request OTP — Seeker phone (dev log)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\"\n}"
+            },
+            "description": "Dev: logs [DEV MODE] OTP for 9876543210: 482917. Prod Firebase: client verifyPhoneNumber() sends real SMS, this not used."
+          }
+        },
+        {
+          "name": "Verify OTP — 6-digit dev",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth", 
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"482917\"\n}"
+            },
+            "description": "Paste OTP from terminal. → {accessToken, worker} + phoneVerified + tokenVersion bump."
+          }
+        },
+        {
+          "name": "Verify OTP — Firebase idToken (real SMS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"eyJhbGciOi...firebaseIdToken\"\n}"
+            },
+            "description": "App getIdToken() after verifyPhoneNumber SMS. Backend verifyIdToken() → same JWT. Keep endpoint, put idToken in otp."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/{{userId}}/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "users",
+                "{{userId}}",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"hex40\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout — kicks all",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Bumps tokenVersion + clears refreshToken → old JWTs 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Media — Global Documents (Bunny)",
+      "item": [
+        {
+          "name": "Seeker compat POST /documents",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "type",
+                  "value": "aadhaar",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "aadhaar | experience | skill → worker_doc. api.md:389"
+          }
+        },
+        {
+          "name": "Upload — company_doc",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "entityType",
+                  "value": "company_doc",
+                  "type": "text"
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{companyId}}",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload — seeker_live_photo (needs GPS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "entityType",
+                  "value": "seeker_live_photo",
+                  "type": "text"
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{userId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "30.210",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "74.945",
+                  "type": "text"
+                },
+                {
+                  "key": "capturedAt",
+                  "value": "2026-09-22T10:00:00Z",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "Requires lat/lng for audit."
+          }
+        },
+        {
+          "name": "Upload — site_photo (needs GPS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "entityType",
+                  "value": "site_photo",
+                  "type": "text"
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{siteId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "30.210",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "74.945",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List — GET /documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get one — GET /documents/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "{{documentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Presign — POST /documents/presign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/presign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "presign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entityType\": \"site_photo\",\n  \"entityId\": \"{{siteId}}\",\n  \"filename\": \"site.jpg\",\n  \"mimeType\": \"image/jpeg\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Company & Contractor",
+      "item": [
+        {
+          "name": "Create Company — POST /companies",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bharat Constructions\",\n  \"contactEmail\": \"hr@bharat.com\",\n  \"contactPhone\": \"9876543210\",\n  \"city\": \"Bathinda\",\n  \"businessType\": \"privateLimited\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Companies — GET /companies/my-profiles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/my-profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "my-profiles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Contractor — POST /contractors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contractors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Infyle Constructions\",\n  \"contactEmail\": \"raj@infyle.com\",\n  \"contactPhone\": \"9876543210\",\n  \"city\": \"Bathinda\",\n  \"teamSizeRange\": \"10-50\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Contractors — GET /contractors/my-profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contractors/my-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contractors",
+                "my-profile"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Projects & Sites",
+      "item": [
+        {
+          "name": "Create Project — POST /projects",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Urban Edge\",\n  \"location\": \"Bathinda\",\n  \"budget\": 4200000\n}"
+            }
+          }
+        },
+        {
+          "name": "Stats — GET /projects/stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "stats"
+              ]
+            }
+          }
+        },
+        {
+          "name": "My Projects — GET /projects/my-projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/my-projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "my-projects"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Site — POST /projects/:id/sites",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/sites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "sites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Block A\",\n  \"location\": \"Site 1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Assign Engineer — POST /sites/:siteId/assign-engineer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/assign-engineer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "assign-engineer"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Sites — GET /sites/my-sites (site_engineer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/my-sites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "my-sites"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Jobs & Applications (Seeker ↔ Company)",
+      "item": [
+        {
+          "name": "Create Job — POST /jobs (company)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Site Electrician\",\n  \"location\": \"Bathinda\",\n  \"dailyPay\": 850,\n  \"skills\": [\"Electrical\"],\n  \"description\": \"...\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Browse Jobs — GET /jobs?search&skill&location (seeker)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs?search=electrician&skill=Electrical&location=Bathinda",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "electrician"
+                },
+                {
+                  "key": "skill",
+                  "value": "Electrical"
+                },
+                {
+                  "key": "location",
+                  "value": "Bathinda"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save — POST /jobs/:id/save (seeker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "save"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Saved — GET /jobs/saved/list (seeker)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/saved/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "saved",
+                "list"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Apply — POST /jobs/:id/applications (seeker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coverNote\": \"I am interested\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Applications — GET /applications (seeker own / company own filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Shortlist — PATCH /applications/:id/status (company)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{applicationId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{applicationId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"shortlisted\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Chat — GET /conversations (both)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "conversations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chat — POST /conversations/:id/messages (interview invite)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/conversations/{{applicationId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "conversations",
+                "{{applicationId}}",
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"You are invited to interview at 22-09-2026 10AM at Site A\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Daily Ops — Site Engineer",
+      "item": [
+        {
+          "name": "Check-in — POST /sites/:siteId/attendance/check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/attendance/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "attendance",
+                "check-in"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 30.210,\n  \"longitude\": 74.945\n}"
+            }
+          }
+        },
+        {
+          "name": "Labour — POST /sites/:siteId/labour",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/labour",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "labour"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-22\",\n  \"headcount\": 12,\n  \"category\": \"skilled\",\n  \"dailyWage\": 850,\n  \"overtimeHours\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Material — POST /sites/:siteId/materials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/materials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "materials"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"materialId\": \"<materialId>\",\n  \"quantity\": 50,\n  \"rate\": 360,\n  \"type\": \"consumption\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Expense — POST /sites/:siteId/expenses",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"fuel\",\n  \"amount\": 1200,\n  \"date\": \"2026-09-22\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Daily Report — POST /sites/:siteId/daily-reports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/daily-reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "daily-reports"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-22\",\n  \"dailyRevenue\": 15000,\n  \"progressPercentage\": 45\n}"
+            },
+            "description": "Server calc cost=labour+material+expenses, profit=revenue-cost, status draft→submitted→reviewed"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Calculators — 10 tools",
+      "item": [
+        {
+          "name": "Concrete — GET /calculators/concrete?L&B&H",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calculators/concrete?length=10&breadth=10&height=0.15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calculators",
+                "concrete"
+              ],
+              "query": [
+                {
+                  "key": "length",
+                  "value": "10"
+                },
+                {
+                  "key": "breadth",
+                  "value": "10"
+                },
+                {
+                  "key": "height",
+                  "value": "0.15"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Brick — GET /calculators/brick",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calculators/brick?wallLength=10&wallHeight=3&wallThickness=0.23",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calculators",
+                "brick"
+              ],
+              "query": [
+                {
+                  "key": "wallLength",
+                  "value": "10"
+                },
+                {
+                  "key": "wallHeight",
+                  "value": "3"
+                },
+                {
+                  "key": "wallThickness",
+                  "value": "0.23"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
