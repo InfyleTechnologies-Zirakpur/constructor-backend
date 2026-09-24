@@ -15,6 +15,7 @@ import { ConversationsService } from './conversations.service.js';
       Message,
       User,
       Job,
+      Application,
     ]),
   ],
   controllers: [ConversationsController],
