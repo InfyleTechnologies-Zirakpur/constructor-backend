@@ -63,15 +63,29 @@ const entities = [
         const shouldSync =
           process.env.DB_SYNC === 'true' ||
           process.env.TYPEORM_SYNC === 'true';
+        // Render (Linux) has no APPDATA, and Cockroach DATABASE_URL already has ?sslmode=verify-full
+        // — so don't crash on path.join(undefined). Try to read root.crt if present, else no explicit ssl.
+        const useSsl = url.includes('sslmode=') || url.includes('cockroachlabs.cloud');
+        let ssl: any = undefined;
+        if (useSsl) {
+          try {
+            const certPath = process.env.APPDATA
+              ? path.join(process.env.APPDATA, 'postgresql', 'root.crt')
+              : path.join(process.cwd(), 'certs', 'root.crt');
+            if (fs.existsSync(certPath)) {
+              ssl = { rejectUnauthorized: true, ca: fs.readFileSync(certPath).toString() };
+            } else {
+              ssl = { rejectUnauthorized: true };
+            }
+          } catch {
+            ssl = { rejectUnauthorized: true };
+          }
+        }
+
         return {
           type: 'postgres' as const,
           url,
-          ssl: {
-            rejectUnauthorized: true,
-            ca: fs
-              .readFileSync(path.join(process.env.APPDATA!, 'postgresql', 'root.crt'))
-              .toString(),
-          },
+          ...(ssl ? { ssl } : {}),
           entities,
           synchronize: shouldSync, // default false — set DB_SYNC=true only for one-off local init
           logging: false, // was `development` → flooded terminal with query: SELECT ... / ALTER TABLE
