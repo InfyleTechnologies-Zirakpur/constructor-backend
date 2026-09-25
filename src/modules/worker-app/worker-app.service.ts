@@ -103,13 +103,42 @@ export class WorkerAppService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // For development, store as a data URL or use a placeholder.
-    // In production, this would upload to S3.
-    const profilePhotoUrl = `https://cdn.buildhire.app/workers/${userId}/profile-${Date.now()}.${file.originalname.split('.').pop()}`;
-
+    // Use global Documents system (Bunny → construction-site.b-cdn.net) for meaningful folders
+    const ext = file.originalname.split('.').pop() || 'jpg';
+    const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0,30);
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const objectKey = `documents/user_avatar/${yyyy}/${mm}/${userId}/${dd}_${sanitized}_${Date.now().toString().slice(-6)}.${ext}`;
+    // Upload via Bunny (same as documents.service)
+    try {
+      const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
+      const cfgPass = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+      const cfgHost = process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
+      const cfgPull = process.env.BUNNY_CDN_URL ?? process.env.BUNNY_CDN_HOSTNAME ?? 'https://construction-site.b-cdn.net';
+      if (cfgZone && cfgPass) {
+        const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
+        const res: any = await (global as any).fetch(url, { method: 'PUT', headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype }, body: file.buffer });
+        if (!res.ok) throw new Error(await res.text());
+        const pull = cfgPull.startsWith('http') ? cfgPull : `https://${cfgPull}`;
+        const profilePhotoUrl = `${pull.replace(/\/$/,'')}/${objectKey}`;
+        // also save as Document for File manager insights
+        const doc = this.documentRepo.create({ entityType: 'user_avatar', entityId: userId, objectKey, originalFilename: file.originalname, mimeType: file.mimetype, size: file.size, ownerId: userId } as any);
+        await this.documentRepo.save(doc);
+        user.avatarUrl = profilePhotoUrl;
+        await this.userRepo.save(user);
+        return { profilePhotoUrl };
+      }
+    } catch {}
+    // Fallback mock (still saves Document for File manager)
+    const profilePhotoUrl = `https://construction-site.b-cdn.net/${objectKey}`;
+    try {
+      const doc = this.documentRepo.create({ entityType: 'user_avatar', entityId: userId, objectKey, originalFilename: file.originalname, mimeType: file.mimetype, size: file.size, ownerId: userId } as any);
+      await this.documentRepo.save(doc);
+    } catch {}
     user.avatarUrl = profilePhotoUrl;
     await this.userRepo.save(user);
-
     return { profilePhotoUrl };
   }
 
@@ -121,25 +150,45 @@ export class WorkerAppService {
     if (!file) throw new BadRequestException('No file provided');
     if (!type) throw new BadRequestException('Document type is required');
 
+    const ext = file.originalname.split('.').pop() || 'pdf';
+    const base = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0,30);
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const objectKey = `documents/worker_doc/${yyyy}/${mm}/${userId}/${dd}_${base}_${Date.now().toString().slice(-6)}.${ext}`;
+
+    // Upload to Bunny for File manager insights (same as /documents/upload)
+    try {
+      const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
+      const cfgPass = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+      const cfgHost = process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
+      if (cfgZone && cfgPass) {
+        const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
+        await (global as any).fetch(url, { method: 'PUT', headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype }, body: file.buffer });
+      }
+    } catch {}
+
+    const pull = (process.env.BUNNY_CDN_URL ?? process.env.BUNNY_CDN_HOSTNAME ?? 'https://construction-site.b-cdn.net').replace(/\/$/,'');
     const document = this.documentRepo.create({
-      entityType: type,
+      entityType: 'worker_doc',
       entityId: userId,
-      objectKey: `documents/${userId}/${type}-${Date.now()}.${file.originalname.split('.').pop()}`,
+      objectKey,
       originalFilename: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
       ownerId: userId,
-    });
+    } as any);
 
-    const saved = await this.documentRepo.save(document);
-
+    const savedAny: any = await this.documentRepo.save(document as any);
+    const savedDoc: any = Array.isArray(savedAny) ? savedAny[0] : savedAny;
     return {
-      id: saved.id,
-      type: saved.entityType,
-      name: saved.originalFilename,
-      url: `https://cdn.buildhire.app/${saved.objectKey}`,
+      id: savedDoc.id,
+      type,
+      name: savedDoc.originalFilename,
+      url: `${pull}/${savedDoc.objectKey}`,
       verificationStatus: 'pending',
-      uploadedAt: saved.createdAt,
+      uploadedAt: savedDoc.createdAt,
     };
   }
 

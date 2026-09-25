@@ -1,0 +1,186 @@
+{
+  "info": {
+    "name": "Admin APIs — CRUD + All Responses",
+    "description": "Admin Web Panel per Brief §14. Import: Postman → Import → File. Set {{baseUrl}}, {{adminToken}} (from POST /auth/login role:admin), {{userId}}, {{companyId}}, {{contractorId}}, {{projectId}}, {{jobId}}, {{applicationId}}. Every CRUD shows example success data.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key":"baseUrl","value":"http://localhost:3000/api/v1"},
+    {"key":"adminToken","value":"eyJ...admin JWT"},
+    {"key":"userId","value":"<userId>"},
+    {"key":"companyId","value":"<companyId>"},
+    {"key":"contractorId","value":"<contractorId>"},
+    {"key":"projectId","value":"<projectId>"},
+    {"key":"siteId","value":"<siteId>"},
+    {"key":"jobId","value":"<jobId>"},
+    {"key":"applicationId","value":"<applicationId>"}
+  ],
+  "item": [
+    {
+      "name": "Auth — Admin Login",
+      "item": [
+        {
+          "name": "POST /auth/login (admin)",
+          "request": {
+            "method":"POST",
+            "header":[{"key":"Content-Type","value":"application/json"}],
+            "url":{"raw":"{{baseUrl}}/auth/login","host":["{{baseUrl}}"],"path":["auth","login"]},
+            "body":{"mode":"raw","raw":"{\n  \"email\": \"admin@infyle.com\",\n  \"password\": \"Admin@123\"\n}"}
+          },
+          "response": [
+            {
+              "name":"200 — CRUD Create/Read",
+              "code":200,
+              "body":"{\n  \"success\": true,\n  \"message\": \"Success\",\n  \"data\": {\n    \"user\": {\"id\":\"adm_1\",\"fullName\":\"Admin\",\"email\":\"admin@infyle.com\",\"role\":\"admin\",\"isVerified\":true},\n    \"accessToken\":\"eyJ...\",\"refreshToken\":\"hex40\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users — CRUD",
+      "item": [
+        {
+          "name":"GET /users — List all users (admin)",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/users?page=1&limit=20","host":["{{baseUrl}}"],"path":["users"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"20"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"u1\",\"fullName\":\"Ravi Kumar\",\"email\":\"ravi@test.com\",\"phone\":\"9876543210\",\"role\":\"job_seeker\",\"isActive\":true,\"isBlocked\":false,\"city\":\"Bathinda\",\"skills\":[\"Electrician\"],\"createdAt\":\"2026-09-22\"}],\n  \"total\": 1, \"page\": 1, \"limit\": 20\n}"}]
+        },
+        {
+          "name":"GET /users/:id — Read one",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/users/{{userId}}","host":["{{baseUrl}}"],"path":["users","{{userId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"u1\",\"fullName\":\"Ravi Kumar\",\"role\":\"job_seeker\",\"email\":\"ravi@test.com\",\"phone\":\"9876543210\",\"city\":\"Bathinda\",\"isBlocked\":false}\n}"}]
+        },
+        {
+          "name":"PATCH /users/:id — Update (deactivate/block)",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/users/{{userId}}","host":["{{baseUrl}}"],"path":["users","{{userId}}"]},"body":{"mode":"raw","raw":"{\n  \"isActive\": false,\n  \"isBlocked\": true,\n  \"blockedReason\": \"spam\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"message\": \"User updated\",\n  \"data\": {\"id\":\"u1\",\"isActive\":false,\"isBlocked\":true,\"blockedReason\":\"spam\"}\n}"}]
+        },
+        {
+          "name":"DELETE /users/:id — Deactivate (soft)",
+          "request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/users/{{userId}}","host":["{{baseUrl}}"],"path":["users","{{userId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"message\": \"User deactivated\",\n  \"data\": {\"deleted\": true}\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Companies — CRUD + Verify",
+      "item": [
+        {
+          "name":"GET /companies — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/companies?page=1&limit=10&status=pending","host":["{{baseUrl}}"],"path":["companies"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"},{"key":"status","value":"pending"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{companyId}}\",\"name\":\"Bharat Constructions\",\"contactEmail\":\"hr@bharat.com\",\"city\":\"Bathinda\",\"verificationStatus\":\"pending\",\"createdAt\":\"2026-09-22\"}],\n  \"total\": 1\n}"}]
+        },
+        {
+          "name":"GET /companies/:id — Read",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/companies/{{companyId}}","host":["{{baseUrl}}"],"path":["companies","{{companyId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{companyId}}\",\"name\":\"Bharat Constructions\",\"gstNumber\":\"07AAAAA0000A1Z5\",\"verificationStatus\":\"pending\",\"documentUrls\":[]}\n}"}]
+        },
+        {
+          "name":"PATCH /companies/:id/verify — Update (admin verify)",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/companies/{{companyId}}/verify","host":["{{baseUrl}}"],"path":["companies","{{companyId}}","verify"]},"body":{"mode":"raw","raw":"{\n  \"verificationStatus\": \"verified\",\n  \"verificationRemarks\": \"Docs OK\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"message\": \"Company verification status updated\",\n  \"data\": {\"id\":\"{{companyId}}\",\"verificationStatus\":\"verified\"}\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Contractors — CRUD + Verify",
+      "item": [
+        {
+          "name":"GET /contractors — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/contractors?page=1&limit=10","host":["{{baseUrl}}"],"path":["contractors"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{contractorId}}\",\"companyName\":\"Infyle Constructions\",\"contactEmail\":\"raj@infyle.com\",\"verificationStatus\":\"pending\"}],\n  \"total\": 1\n}"}]
+        },
+        {
+          "name":"PATCH /contractors/:id/verify — Update",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/contractors/{{contractorId}}/verify","host":["{{baseUrl}}"],"path":["contractors","{{contractorId}}","verify"]},"body":{"mode":"raw","raw":"{\n  \"verificationStatus\": \"verified\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{contractorId}}\",\"verificationStatus\":\"verified\"}\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Projects & Sites — CRUD",
+      "item": [
+        {
+          "name":"GET /projects — List all (admin)",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/projects?page=1&limit=10","host":["{{baseUrl}}"],"path":["projects"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{projectId}}\",\"name\":\"Urban Edge\",\"location\":\"Bathinda\",\"status\":\"draft\",\"budget\":\"4200000\"}],\n  \"total\": 1\n}"}]
+        },
+        {
+          "name":"GET /projects/:id — Read",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/projects/{{projectId}}","host":["{{baseUrl}}"],"path":["projects","{{projectId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{projectId}}\",\"name\":\"Urban Edge\",\"sites\":[]}\n}"}]
+        },
+        {
+          "name":"PATCH /projects/:id — Update",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/projects/{{projectId}}","host":["{{baseUrl}}"],"path":["projects","{{projectId}}"]},"body":{"mode":"raw","raw":"{\n  \"status\": \"active\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"message\": \"Project updated\",\"data\": {\"id\":\"{{projectId}}\",\"status\":\"active\"}\n}"}]
+        },
+        {
+          "name":"GET /projects/:projectId/sites — List sites",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/projects/{{projectId}}/sites","host":["{{baseUrl}}"],"path":["projects","{{projectId}}","sites"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{siteId}}\",\"name\":\"Block A\",\"status\":\"active\"}]\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Jobs — CRUD + Moderate",
+      "item": [
+        {
+          "name":"GET /jobs — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/jobs?page=1&limit=10","host":["{{baseUrl}}"],"path":["jobs"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{jobId}}\",\"title\":\"Electrician\",\"status\":\"published\",\"companyId\":\"{{companyId}}\"}]\n}"}]
+        },
+        {
+          "name":"GET /jobs/:id — Read",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/jobs/{{jobId}}","host":["{{baseUrl}}"],"path":["jobs","{{jobId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{jobId}}\",\"title\":\"Electrician\",\"location\":\"Bathinda\",\"dailyPay\":850}\n}"}]
+        },
+        {
+          "name":"PATCH /jobs/:id/moderate — Update (moderate)",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/jobs/{{jobId}}/moderate","host":["{{baseUrl}}"],"path":["jobs","{{jobId}}","moderate"]},"body":{"mode":"raw","raw":"{\n  \"status\": \"rejected\",\n  \"moderationRemarks\": \"violates policy\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{jobId}}\",\"status\":\"rejected\"}\n}"}]
+        },
+        {
+          "name":"DELETE /jobs/:id — Delete (admin)",
+          "request":{"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/jobs/{{jobId}}","host":["{{baseUrl}}"],"path":["jobs","{{jobId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"message\": \"Job deleted\"\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Applications — CRUD",
+      "item": [
+        {
+          "name":"GET /applications — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/applications?page=1&limit=10","host":["{{baseUrl}}"],"path":["applications"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"{{applicationId}}\",\"jobId\":\"{{jobId}}\",\"userId\":\"...\",\"status\":\"pending\"}],\n  \"total\": 1\n}"}]
+        },
+        {
+          "name":"GET /applications/:id — Read",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/applications/{{applicationId}}","host":["{{baseUrl}}"],"path":["applications","{{applicationId}}"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{applicationId}}\",\"status\":\"pending\",\"user\":{\"city\":\"Bathinda\",\"skills\":[]}}\n}"}]
+        },
+        {
+          "name":"PATCH /applications/:id/status — Update",
+          "request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"},{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/applications/{{applicationId}}/status","host":["{{baseUrl}}"],"path":["applications","{{applicationId}}","status"]},"body":{"mode":"raw","raw":"{\n  \"status\": \"shortlisted\"\n}"}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": {\"id\":\"{{applicationId}}\",\"status\":\"shortlisted\"}\n}"}]
+        }
+      ]
+    },
+    {
+      "name": "Documents & Audit",
+      "item": [
+        {
+          "name":"GET /documents — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/documents","host":["{{baseUrl}}"],"path":["documents"]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"doc1\",\"entityType\":\"company_doc\",\"objectKey\":\"...\",\"url\":\"https://...\"}]\n}"}]
+        },
+        {
+          "name":"GET /audit-logs — List all",
+          "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{adminToken}}"}],"url":{"raw":"{{baseUrl}}/audit-logs?page=1&limit=20","host":["{{baseUrl}}"],"path":["audit-logs"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"20"}]}},
+          "response":[{"name":"200","code":200,"body":"{\n  \"success\": true,\n  \"data\": [{\"id\":\"log1\",\"action\":\"create\",\"entityType\":\"Job\",\"actorId\":\"...\"}],\n  \"total\": 1\n}"}]
+        }
+      ]
+    }
+  ]
+}
