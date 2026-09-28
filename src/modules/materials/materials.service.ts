@@ -343,3 +343,5 @@ export class MaterialsService {
       throw new ForbiddenException('You do not have access to this site');
     }
   }
+}
+
