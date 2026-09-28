@@ -1334,6 +1334,342 @@ The Applications module bridges Job Seekers and Companies. Seekers apply with da
 
 ---
 
+### Module 9: Reporting & Analytics (`/reports`)
+
+The Reporting & Analytics module provides executive, site-level, operational, and financial business intelligence derived directly from database records (attendance logs, labour entries, material transactions, ad-hoc expenses, and daily progress logs). It enforces role-based access control, project/site ownership isolation, server-side parameter validation, and supports asynchronous as well as direct streaming exports in CSV, Excel, and PDF formats.
+
+---
+
+#### 1. Project Reports
+
+##### 1.1 Project Summary
+- **Endpoint**: `/reports/projects/:projectId/summary`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Access Restrictions**: Contractors can only view summary reports for projects they own (`project.contractorId = contractor.id`).
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "project": {
+        "id": "proj-1",
+        "name": "Skyline Towers",
+        "location": "Mohali Sector 82",
+        "status": "active",
+        "budget": 5000000,
+        "contractValue": 6000000,
+        "durationDays": 365,
+        "startDate": "2026-01-01",
+        "endDate": "2026-12-31"
+      },
+      "sites": {
+        "total": 3,
+        "active": 2
+      },
+      "costs": {
+        "labourCost": 450000,
+        "materialCost": 1250000,
+        "expenseCost": 85000,
+        "otherCosts": 15000,
+        "totalCost": 1800000
+      },
+      "profitability": {
+        "totalRevenue": 6000000,
+        "netProfit": 4200000,
+        "profitMarginPercentage": 70
+      },
+      "progress": {
+        "averagePercentage": 45.5,
+        "totalReportsSubmitted": 48,
+        "latestReportDate": "2026-09-28"
+      }
+    }
+  }
+  ```
+
+##### 1.2 Project Progress
+- **Endpoint**: `/reports/projects/:projectId/progress`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Success Response (200 OK)**: Overall completion percentage, site-by-site status/progress breakdown, and chronological progress milestones from daily reports.
+
+##### 1.3 Project Cost Analysis
+- **Endpoint**: `/reports/projects/:projectId/cost`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `startDate`, `endDate`, `siteId`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "projectId": "proj-1",
+      "projectName": "Skyline Towers",
+      "budget": 5000000,
+      "totalSpent": 1800000,
+      "remainingBudget": 3200000,
+      "budgetUtilizationPercentage": 36,
+      "breakdown": {
+        "labour": 450000,
+        "materials": 1250000,
+        "expenses": 85000
+      }
+    }
+  }
+  ```
+
+##### 1.4 Project Labour Cost
+- **Endpoint**: `/reports/projects/:projectId/labour-cost`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `startDate`, `endDate`, `siteId`
+- **Success Response (200 OK)**: Aggregated worker headcount, total overtime hours, and wage expenditure broken down by trade (Masons, Carpenters, Helpers, Steel Benders).
+
+##### 1.5 Project Material Cost
+- **Endpoint**: `/reports/projects/:projectId/material-cost`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `startDate`, `endDate`, `siteId`, `category`
+- **Success Response (200 OK)**: Purchases vs consumption expenditure, material category distribution, top vendor/supplier rankings, and transaction volumes.
+
+##### 1.6 Project Expense Summary
+- **Endpoint**: `/reports/projects/:projectId/expenses`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `startDate`, `endDate`, `siteId`, `category`
+- **Success Response (200 OK)**: Expense category distribution (Travel, Equipment, Fuel, Food, Permits), total expenditures, and recent receipts.
+
+##### 1.7 Project Profitability
+- **Endpoint**: `/reports/projects/:projectId/profitability`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "projectId": "proj-1",
+      "projectName": "Skyline Towers",
+      "financials": {
+        "contractValue": 6000000,
+        "budget": 5000000,
+        "actualCost": 1800000,
+        "costVariance": 3200000,
+        "isUnderBudget": true
+      },
+      "profitability": {
+        "recognizedRevenue": 6000000,
+        "netProfit": 4200000,
+        "profitMarginPercentage": 70,
+        "status": "profitable"
+      },
+      "costDistribution": {
+        "labourCost": 450000,
+        "materialCost": 1250000,
+        "expenseCost": 85000,
+        "otherCosts": 15000,
+        "totalCost": 1800000
+      }
+    }
+  }
+  ```
+
+##### 1.8 Daily Project Reports List
+- **Endpoint**: `/reports/projects/:projectId/daily-reports`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `status`, `startDate`, `endDate`, `siteId`, `page`, `limit`
+- **Success Response (200 OK)**: Paginated collection of daily reports across all project sites with cost and progress metrics.
+
+---
+
+#### 2. Site Reports
+
+##### 2.1 Daily Site Reports
+- **Endpoint**: `/sites/:siteId/daily-reports`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Access Restrictions**: Engineers must be assigned to `:siteId`; Contractors must own the project containing `:siteId`.
+- **Query Parameters**: `status`, `startDate`, `endDate`, `page`, `limit`
+
+##### 2.2 Site Labour Report
+- **Endpoint**: `/reports/sites/:siteId/labour`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Query Parameters**: `startDate`, `endDate`, `trade`
+- **Success Response (200 OK)**: Total workforce on site, overtime hours, wages paid, and breakdown by trade.
+
+##### 2.3 Site Material Report
+- **Endpoint**: `/reports/sites/:siteId/materials`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Query Parameters**: `startDate`, `endDate`, `type`
+- **Success Response (200 OK)**: Real-time stock on hand per catalog material and transaction logs (purchases, consumption, issues).
+
+##### 2.4 Site Expense Report
+- **Endpoint**: `/reports/sites/:siteId/expenses`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Query Parameters**: `startDate`, `endDate`, `category`
+- **Success Response (200 OK)**: Detailed expense logs with category groupings and total site expenditure.
+
+##### 2.5 Site Progress Report
+- **Endpoint**: `/reports/sites/:siteId/progress`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Query Parameters**: `startDate`, `endDate`
+- **Success Response (200 OK)**: Chronological progress curve from daily report submissions, latest work description, and recorded site blockers.
+
+---
+
+#### 3. Operational Reports
+
+##### 3.1 Platform / Contractor Attendance Report
+- **Endpoint**: `/reports/operations/attendance`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `startDate`, `endDate`, `siteId`, `projectId`
+- **Success Response (200 OK)**: Total worker check-ins, total hours worked, overtime minutes, and recent attendance timestamps.
+
+##### 3.2 Contractor Portfolio Report
+- **Endpoint**: `/reports/operations/contractors`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `status`, `page`, `limit`
+- **Success Response (200 OK)**: Contractor verification status, active project count, completed projects, and cumulative portfolio budget.
+
+##### 3.3 Platform User Demographics
+- **Endpoint**: `/reports/operations/users`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Success Response (200 OK)**: Total user count, role distribution (`admin`, `contractor`, `site_engineer`, `company`, `job_seeker`), and active vs blocked metrics.
+
+##### 3.4 Company Verification & Hiring Report
+- **Endpoint**: `/reports/operations/companies`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Success Response (200 OK)**: Total companies registered, verification funnel (`pending`, `verified`, `rejected`), and total jobs posted.
+
+##### 3.5 Jobs & Applications Funnel Report
+- **Endpoint**: `/reports/operations/jobs-applications`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `company`
+- **Success Response (200 OK)**: Total jobs posted, candidate application funnel (`pending`, `reviewed`, `shortlisted`, `accepted`, `rejected`), and candidate-per-job averages.
+
+---
+
+#### 4. Financial Reports
+
+##### 4.1 Cross-Project Cost Analytics
+- **Endpoint**: `/reports/financial/costs`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `projectId`, `startDate`, `endDate`
+- **Success Response (200 OK)**: Portfolio-wide comparison of allocated budgets vs actual spent across projects.
+
+##### 4.2 Cross-Project Profitability Rankings
+- **Endpoint**: `/reports/financial/profitability`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`
+- **Query Parameters**: `projectId`, `startDate`, `endDate`
+- **Success Response (200 OK)**: Portfolio revenue, overall profit margin %, and project rankings sorted from most to least profitable.
+
+---
+
+#### 5. Export Functionality (CSV, Excel, PDF)
+
+##### 5.1 Create Asynchronous Export Request
+- **Endpoint**: `/reports/export`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Validation Rules**:
+  - `reportType`: string, required (e.g. `project-summary`, `project-cost`, `labour-cost`, `material-cost`, `expenses`, `profitability`, `daily-reports`, `site-labour`, `site-materials`, `site-expenses`, `attendance`, `financial-costs`).
+  - `format`: enum (`csv`, `excel`, `pdf`), required.
+  - `filters`: object containing query parameters (`projectId`, `siteId`, `startDate`, `endDate`, etc.).
+- **Example Request**:
+  ```bash
+  curl -X POST http://localhost:3000/reports/export \
+    -H "Authorization: Bearer <accessToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "reportType": "project-cost",
+      "format": "csv",
+      "filters": { "projectId": "proj-1" }
+    }'
+  ```
+- **Success Response (201 Created)**:
+  ```json
+  {
+    "success": true,
+    "message": "Export request created",
+    "data": {
+      "id": "exp-1234-5678-9abc",
+      "userId": "user-uuid",
+      "reportType": "project-cost",
+      "format": "csv",
+      "status": "completed",
+      "fileName": "project-cost-2026-09-28.csv",
+      "fileUrl": "/reports/export/exp-1234-5678-9abc/download",
+      "fileSizeBytes": 1042,
+      "createdAt": "2026-09-28T10:00:00.000Z",
+      "completedAt": "2026-09-28T10:00:01.000Z"
+    }
+  }
+  ```
+
+##### 5.2 List User Export Requests
+- **Endpoint**: `/reports/export`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Success Response (200 OK)**: Returns the user's export job history with generation status and file metadata.
+
+##### 5.3 Get Export Job Status
+- **Endpoint**: `/reports/export/:id`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Access Restrictions**: Users can only inspect export requests they created.
+
+##### 5.4 Download Completed Export
+- **Endpoint**: `/reports/export/:id/download`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Response**: Binary / text file payload with appropriate `Content-Type` (`text/csv`, `application/vnd.ms-excel`, `application/pdf`) and `Content-Disposition: attachment; filename="..."`.
+
+##### 5.5 Direct Streaming Export Download
+- **Endpoint**: `/reports/export/download`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `contractor`, `site_engineer`
+- **Query Parameters**: `reportType`, `format` (`csv`, `excel`, `pdf`), plus report-specific filters (e.g. `projectId`, `startDate`, `endDate`).
+- **Response**: Immediate streaming file download with content-disposition attachment.
+
+---
+
 ## 🧪 Testing with Bruno
 
 The repository includes a ready-to-run [Bruno](https://www.usebruno.com/) collection inside the `bruno/` directory:
@@ -1350,9 +1686,11 @@ The repository includes a ready-to-run [Bruno](https://www.usebruno.com/) collec
 | `bruno/Attendance/` | `Site Check In`, `Site Check Out`, `Create Labour Record`, `Get Labour Records`, `List Attendance` |
 | `bruno/Materials/` | `Create Material`, `List Materials`, `Record Transaction`, `List Site Transactions`, `Get Stock`, `Update Status` |
 | `bruno/Expenses/` | `Record Expense`, `List Expenses`, `Get Expense`, `Update Expense` |
+| `bruno/Reports/` | `Create Daily Report`, `Get Report`, `List Site Reports`, `Project Reports`, `Review Report`, `Submit Report`, `Project Summary`, `Project Progress`, `Project Cost`, `Project Labour Cost`, `Project Material Cost`, `Project Expenses`, `Project Profitability`, `Project Daily Reports`, `Site Labour Report`, `Site Material Report`, `Site Expense Report`, `Site Progress Report`, `Operational Attendance`, `Operational Contractors`, `Operational Users`, `Operational Companies`, `Operational Jobs Applications`, `Financial Costs`, `Financial Profitability`, `Create Export`, `List Exports`, `Get Export Status`, `Download Export`, `Direct Export Download` |
 
 ### Environment Setup in Bruno
 Set the Bruno environment variables:
 - `baseUrl`: `http://localhost:3000`
 - `token`: dynamically populated via login / verify-otp post-response scripts.
 - `accessToken`: alias used in bearer token authorization headers.
+

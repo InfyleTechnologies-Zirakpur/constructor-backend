@@ -1,0 +1,15 @@
+meta {
+  name: Financial Profitability Report
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/reports/financial/profitability
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

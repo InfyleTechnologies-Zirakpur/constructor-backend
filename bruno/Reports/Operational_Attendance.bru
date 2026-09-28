@@ -1,0 +1,15 @@
+meta {
+  name: Operational Attendance Report
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/reports/operations/attendance
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

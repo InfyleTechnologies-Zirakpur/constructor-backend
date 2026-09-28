@@ -1,0 +1,19 @@
+meta {
+  name: Project Progress Report
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/reports/projects/:projectId/progress
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  projectId: {{projectId}}
+}

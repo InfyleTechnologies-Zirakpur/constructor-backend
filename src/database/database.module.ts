@@ -15,6 +15,7 @@ import { Material } from '../modules/materials/entities/material.entity.js';
 import { MaterialTransaction } from '../modules/materials/entities/material-transaction.entity.js';
 import { Expense } from '../modules/expenses/entities/expense.entity.js';
 import { DailyReport } from '../modules/reports/entities/daily-report.entity.js';
+import { ReportExport } from '../modules/reports/entities/report-export.entity.js';
 import { Document } from '../modules/documents/entities/document.entity.js';
 import { Notification } from '../modules/notifications/entities/notification.entity.js';
 import { AuditLog } from '../modules/audit-logs/entities/audit-log.entity.js';
@@ -42,6 +43,7 @@ const entities = [
   MaterialTransaction,
   Expense,
   DailyReport,
+  ReportExport,
   Document,
   Notification,
   AuditLog,

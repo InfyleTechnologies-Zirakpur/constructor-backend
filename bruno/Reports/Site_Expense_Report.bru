@@ -1,0 +1,19 @@
+meta {
+  name: Site Expense Report
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/reports/sites/:siteId/expenses
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Financial Cost Report
+  type: http
+  seq: 24
+}
+
+get {
+  url: {{baseUrl}}/reports/financial/costs
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

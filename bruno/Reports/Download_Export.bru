@@ -1,0 +1,19 @@
+meta {
+  name: Download Export File
+  type: http
+  seq: 29
+}
+
+get {
+  url: {{baseUrl}}/reports/export/:id/download
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{exportId}}
+}

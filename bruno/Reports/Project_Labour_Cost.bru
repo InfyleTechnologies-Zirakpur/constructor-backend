@@ -1,0 +1,19 @@
+meta {
+  name: Project Labour Cost Report
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/reports/projects/:projectId/labour-cost
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  projectId: {{projectId}}
+}
