@@ -1,18 +1,19 @@
 meta {
-  name: Refresh Token
+  name: Verify OTP
   type: http
-  seq: 6
+  seq: 4
 }
 
 post {
-  url: {{baseUrl}}/auth/refresh
+  url: {{baseUrl}}/auth/verify-otp
   body: json
-  auth: inherit
+  auth: none
 }
 
 body:json {
   {
-    "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+    "phone": "9876543210",
+    "otp": "123456"
   }
 }
 

@@ -111,10 +111,16 @@ export class AttendanceController {
   @Get('sites/:siteId/attendance')
   @Roles('admin', 'contractor', 'site_engineer')
   async siteAttendance(
+    @Req() req: any,
     @Param('siteId') siteId: string,
     @Query('date') date?: string,
   ) {
-    const data = await this.attendanceService.getSiteAttendance(siteId, date);
+    const data = await this.attendanceService.getSiteAttendance(
+      siteId,
+      req.user.id,
+      req.user.role,
+      date,
+    );
     return { success: true, data };
   }
 
@@ -149,10 +155,16 @@ export class AttendanceController {
   @Get('sites/:siteId/labour')
   @Roles('admin', 'contractor', 'site_engineer')
   async getLabourRecords(
+    @Req() req: any,
     @Param('siteId') siteId: string,
     @Query('date') date?: string,
   ) {
-    const result = await this.attendanceService.getLabourRecords(siteId, date);
+    const result = await this.attendanceService.getLabourRecords(
+      siteId,
+      req.user.id,
+      req.user.role,
+      date,
+    );
     return { success: true, data: result };
   }
 }

@@ -7,6 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
 import { CreateExpenseDto } from './dto/create-expenses.dto.js';
 import { UpdateExpenseDto } from './dto/update-expenses.dto.js';
 
@@ -18,10 +20,18 @@ export class ExpensesService {
 
     @InjectRepository(SiteEngineerAssignment)
     private readonly assignmentRepo: Repository<SiteEngineerAssignment>,
+
+    @InjectRepository(Contractor)
+    private readonly contractorRepo: Repository<Contractor>,
+
+    @InjectRepository(Project)
+    private readonly projectRepo: Repository<Project>,
   ) {}
 
   /**
    * Create an expense for a site.
+   * Site engineers must be assigned to the site.
+   * Contractors must own the site's project.
    */
   async createExpense(
     siteId: string,
@@ -29,9 +39,10 @@ export class ExpensesService {
     role: string,
     dto: CreateExpenseDto,
   ): Promise<Expense> {
-    // Verify site access for site engineers
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
     }
 
     const expense = this.expenseRepo.create({
@@ -50,8 +61,15 @@ export class ExpensesService {
 
   /**
    * List expenses for a site.
+   * Contractors must own the site's project; site engineers must be assigned.
    */
-  async listExpenses(siteId: string, date?: string) {
+  async listExpenses(siteId: string, userId: string, role: string, date?: string) {
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
+    }
+
     const query = this.expenseRepo
       .createQueryBuilder('e')
       .where('e.siteId = :siteId', { siteId });
@@ -77,15 +95,23 @@ export class ExpensesService {
 
   /**
    * Get an expense by ID.
+   * Enforces access control: contractors see only their sites'; engineers see only assigned sites'.
    */
-  async getExpenseById(id: string): Promise<Expense> {
+  async getExpenseById(id: string, userId: string, role: string): Promise<Expense> {
     const expense = await this.expenseRepo.findOne({ where: { id } });
     if (!expense) throw new NotFoundException('Expense not found');
+
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(expense.siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(expense.siteId, userId);
+    }
+
     return expense;
   }
 
   /**
-   * Update an expense (e.g. adding attachmentUrl after S3 upload).
+   * Update an expense (e.g. adding attachmentUrl after upload).
    */
   async updateExpense(
     id: string,
@@ -93,12 +119,7 @@ export class ExpensesService {
     role: string,
     dto: UpdateExpenseDto,
   ): Promise<Expense> {
-    const expense = await this.getExpenseById(id);
-
-    if (role === 'site_engineer') {
-      await this.verifySiteAccess(expense.siteId, userId);
-    }
-
+    const expense = await this.getExpenseById(id, userId, role);
     Object.assign(expense, dto);
     return this.expenseRepo.save(expense);
   }
@@ -131,6 +152,25 @@ export class ExpensesService {
     });
     if (!assignment) {
       throw new ForbiddenException('You are not assigned to this site');
+    }
+  }
+
+  private async verifyContractorSiteAccess(
+    siteId: string,
+    userId: string,
+  ): Promise<void> {
+    const contractor = await this.contractorRepo.findOne({ where: { userId } });
+    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+
+    const project = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
+      .where('ps.id = :siteId', { siteId })
+      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .getOne();
+
+    if (!project) {
+      throw new ForbiddenException('You do not have access to this site');
     }
   }
 }

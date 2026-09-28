@@ -23,6 +23,7 @@ export class ExpensesController {
 
   /**
    * POST /sites/:siteId/expenses — Record a site expense.
+   * Site engineers must be assigned to the site; contractors must own it.
    */
   @Post('sites/:siteId/expenses')
   @Roles('admin', 'contractor', 'site_engineer')
@@ -46,29 +47,42 @@ export class ExpensesController {
 
   /**
    * GET /sites/:siteId/expenses — List site expenses.
+   * Access controlled: only users with access to this site.
    */
   @Get('sites/:siteId/expenses')
   @Roles('admin', 'contractor', 'site_engineer')
   async listExpenses(
+    @Req() req: any,
     @Param('siteId') siteId: string,
     @Query('date') date?: string,
   ) {
-    const result = await this.expensesService.listExpenses(siteId, date);
+    const result = await this.expensesService.listExpenses(
+      siteId,
+      req.user.id,
+      req.user.role,
+      date,
+    );
     return { success: true, data: result };
   }
 
   /**
    * GET /expenses/:id — Get a single expense.
+   * Access controlled: user must have access to the expense's site.
    */
   @Get('expenses/:id')
   @Roles('admin', 'contractor', 'site_engineer')
-  async getExpense(@Param('id') id: string) {
-    const expense = await this.expensesService.getExpenseById(id);
+  async getExpense(@Req() req: any, @Param('id') id: string) {
+    const expense = await this.expensesService.getExpenseById(
+      id,
+      req.user.id,
+      req.user.role,
+    );
     return { success: true, data: expense };
   }
 
   /**
-   * PATCH /expenses/:id — Update an expense (e.g. to attach S3 upload URL).
+   * PATCH /expenses/:id — Update an expense.
+   * Access controlled: user must have access to the expense's site.
    */
   @Patch('expenses/:id')
   @Roles('admin', 'contractor', 'site_engineer')

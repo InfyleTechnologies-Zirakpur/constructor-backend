@@ -42,7 +42,7 @@ export class ProjectsController {
    * Contractor gets own stats, admin gets global.
    */
   @Get('stats')
-  @Roles('contractor', 'admin', 'site_engineer')
+  @Roles('contractor', 'admin')
   async stats(@Req() req: any) {
     const isAdmin = req.user.role === 'admin';
     return this.projectsService.getStats(isAdmin ? undefined : req.user.id);

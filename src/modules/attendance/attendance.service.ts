@@ -10,6 +10,8 @@ import { Repository } from 'typeorm';
 import { Attendance } from './entities/attendance.entity.js';
 import { LabourRecord } from './entities/labour-record.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
 import {
   CheckInDto,
   CreateLabourRecordDto,
@@ -30,6 +32,12 @@ export class AttendanceService {
 
     @InjectRepository(SiteEngineerAssignment)
     private readonly assignmentRepo: Repository<SiteEngineerAssignment>,
+
+    @InjectRepository(Contractor)
+    private readonly contractorRepo: Repository<Contractor>,
+
+    @InjectRepository(Project)
+    private readonly projectRepo: Repository<Project>,
   ) {}
 
   // ─── CHECK-IN ─────────────────────────────────────
@@ -119,12 +127,21 @@ export class AttendanceService {
     if (role === 'job_seeker' || role === 'site_engineer') {
       query.where('att.userId = :userId', { userId });
     } else if (role === 'contractor') {
-      // Contractor sees attendance for their assigned sites
-      const assignments = await this.assignmentRepo.find({
-        where: { isActive: true },
-        select: { siteId: true },
-      });
-      const siteIds = assignments.map((a) => a.siteId);
+      // Contractor only sees attendance for their own project sites
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      if (!contractor) return { items: [], summary: { days: 0, overtime: '0h' } };
+
+      // Get siteIds from projects owned by this contractor
+      const ownedSiteIds = await this.assignmentRepo
+        .createQueryBuilder('sea')
+        .innerJoin('project_sites', 'ps', 'ps.id = sea.siteId')
+        .innerJoin('projects', 'p', 'p.id = ps.projectId')
+        .select('sea.siteId', 'siteId')
+        .where('p.contractorId = :contractorId', { contractorId: contractor.id })
+        .andWhere('sea.isActive = true')
+        .getRawMany();
+
+      const siteIds = ownedSiteIds.map((r: any) => r.siteId).filter(Boolean);
       if (siteIds.length > 0) {
         query.where('att.siteId IN (:...siteIds)', { siteIds });
       } else {
@@ -196,7 +213,20 @@ export class AttendanceService {
 
   // ─── SITE ATTENDANCE (ERP) ────────────────────────
 
-  async getSiteAttendance(siteId: string, date?: string) {
+  /**
+   * Get attendance for a specific site.
+   * Site engineers can only query sites they are assigned to.
+   * Contractors can only query sites they own.
+   */
+  async getSiteAttendance(siteId: string, userId: string, role: string, date?: string) {
+    // Access control: site engineer must be assigned; contractor must own
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
+    }
+    // admin: unrestricted
+
     const query = this.attendanceRepo.createQueryBuilder('att');
     query.where('att.siteId = :siteId', { siteId });
 
@@ -251,7 +281,18 @@ export class AttendanceService {
     return this.labourRepo.save(record);
   }
 
-  async getLabourRecords(siteId: string, date?: string) {
+  /**
+   * Get labour records for a site.
+   * Site engineers can only query sites they are assigned to.
+   * Contractors can only query sites they own.
+   */
+  async getLabourRecords(siteId: string, userId: string, role: string, date?: string) {
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
+    }
+
     const where: Record<string, unknown> = { siteId };
     if (date) where.date = date;
 
@@ -339,6 +380,28 @@ export class AttendanceService {
     });
     if (!assignment) {
       throw new ForbiddenException('You are not assigned to this site');
+    }
+  }
+
+  /**
+   * Verifies that the authenticated contractor owns the project that contains this site.
+   */
+  private async verifyContractorSiteAccess(
+    siteId: string,
+    userId: string,
+  ): Promise<void> {
+    const contractor = await this.contractorRepo.findOne({ where: { userId } });
+    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+
+    const project = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
+      .where('ps.id = :siteId', { siteId })
+      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .getOne();
+
+    if (!project) {
+      throw new ForbiddenException('You do not have access to this site');
     }
   }
 }

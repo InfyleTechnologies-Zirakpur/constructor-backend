@@ -123,6 +123,7 @@ export class MaterialsController {
   @Get('sites/:siteId/materials')
   @Roles('admin', 'contractor', 'site_engineer')
   async listTransactions(
+    @Req() req: any,
     @Param('siteId') siteId: string,
     @Query('type') type?: string,
     @Query('materialId') materialId?: string,
@@ -130,6 +131,8 @@ export class MaterialsController {
   ) {
     const result = await this.materialsService.listTransactions(
       siteId,
+      req.user.id,
+      req.user.role,
       type,
       materialId,
       date,
@@ -143,10 +146,16 @@ export class MaterialsController {
   @Get('sites/:siteId/materials/stock')
   @Roles('admin', 'contractor', 'site_engineer')
   async getStock(
+    @Req() req: any,
     @Param('siteId') siteId: string,
     @Query('materialId') materialId?: string,
   ) {
-    const result = await this.materialsService.getStock(siteId, materialId);
+    const result = await this.materialsService.getStock(
+      siteId,
+      req.user.id,
+      req.user.role,
+      materialId,
+    );
     return { success: true, data: result };
   }
 
