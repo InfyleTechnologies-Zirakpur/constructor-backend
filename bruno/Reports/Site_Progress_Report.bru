@@ -1,0 +1,19 @@
+meta {
+  name: Site Progress Report
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/reports/sites/:siteId/progress
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}

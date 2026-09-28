@@ -3,6 +3,8 @@ import { ExpensesService } from '../expenses.service.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Expense } from '../entities/expense.entity.js';
 import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../../contractors/entities/contractor.entity.js';
+import { Project } from '../../projects/entities/project.entity.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -10,6 +12,8 @@ describe('ExpensesService', () => {
   let service: ExpensesService;
   let expenseRepo: any;
   let assignmentRepo: any;
+  let contractorRepo: any;
+  let projectRepo: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,12 +42,26 @@ describe('ExpensesService', () => {
             findOne: vi.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Contractor),
+          useValue: {
+            findOne: vi.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Project),
+          useValue: {
+            findOne: vi.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<ExpensesService>(ExpensesService);
     expenseRepo = module.get(getRepositoryToken(Expense));
     assignmentRepo = module.get(getRepositoryToken(SiteEngineerAssignment));
+    contractorRepo = module.get(getRepositoryToken(Contractor));
+    projectRepo = module.get(getRepositoryToken(Project));
   });
 
   it('should be defined', () => {
@@ -91,6 +109,33 @@ describe('ExpensesService', () => {
           date: '2026-09-09',
           amount: 100,
           category: 'Food',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should verify site access for contractor owning the project', async () => {
+      contractorRepo.findOne.mockResolvedValue({ id: 'c-1', userId: 'user-c' });
+      projectRepo.findOne.mockResolvedValue({ id: 'proj-1', contractorId: 'c-1' });
+
+      await service.createExpense('site-1', 'user-c', 'contractor', {
+        date: '2026-09-09',
+        amount: 300,
+        category: 'Supplies',
+      });
+
+      expect(contractorRepo.findOne).toHaveBeenCalledWith({ where: { userId: 'user-c' } });
+      expect(expenseRepo.create).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if contractor does not own the project', async () => {
+      contractorRepo.findOne.mockResolvedValue({ id: 'c-1', userId: 'user-c' });
+      projectRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.createExpense('site-1', 'user-c', 'contractor', {
+          date: '2026-09-09',
+          amount: 300,
+          category: 'Supplies',
         }),
       ).rejects.toThrow(ForbiddenException);
     });

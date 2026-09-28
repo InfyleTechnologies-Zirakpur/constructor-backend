@@ -1,0 +1,19 @@
+meta {
+  name: Project Summary Report
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/reports/projects/:projectId/summary
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  projectId: {{projectId}}
+}

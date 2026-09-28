@@ -5,6 +5,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Attendance } from '../entities/attendance.entity.js';
 import { LabourRecord } from '../entities/labour-record.entity.js';
 import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../../contractors/entities/contractor.entity.js';
+import { Project } from '../../projects/entities/project.entity.js';
 import {
   BadRequestException,
   ConflictException,
@@ -65,6 +67,23 @@ describe('AttendanceService', () => {
           useValue: {
             findOne: vi.fn(),
             find: vi.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: getRepositoryToken(Contractor),
+          useValue: {
+            findOne: vi.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Project),
+          useValue: {
+            createQueryBuilder: vi.fn(() => ({
+              innerJoin: vi.fn().mockReturnThis(),
+              where: vi.fn().mockReturnThis(),
+              andWhere: vi.fn().mockReturnThis(),
+              getOne: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+            })),
           },
         },
       ],

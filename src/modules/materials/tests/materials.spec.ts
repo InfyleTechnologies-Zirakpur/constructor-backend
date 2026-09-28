@@ -5,6 +5,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Material } from '../entities/material.entity.js';
 import { MaterialTransaction } from '../entities/material-transaction.entity.js';
 import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../../contractors/entities/contractor.entity.js';
+import { Project } from '../../projects/entities/project.entity.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('MaterialsService', () => {
@@ -12,6 +14,8 @@ describe('MaterialsService', () => {
   let materialRepo: any;
   let transactionRepo: any;
   let assignmentRepo: any;
+  let contractorRepo: any;
+  let projectRepo: any;
 
   const mockMaterial = {
     id: 'mat-1',
@@ -66,6 +70,23 @@ describe('MaterialsService', () => {
             findOne: vi.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Contractor),
+          useValue: {
+            findOne: vi.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Project),
+          useValue: {
+            createQueryBuilder: vi.fn(() => ({
+              innerJoin: vi.fn().mockReturnThis(),
+              where: vi.fn().mockReturnThis(),
+              andWhere: vi.fn().mockReturnThis(),
+              getOne: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+            })),
+          },
+        },
       ],
     }).compile();
 
@@ -73,6 +94,8 @@ describe('MaterialsService', () => {
     materialRepo = module.get(getRepositoryToken(Material));
     transactionRepo = module.get(getRepositoryToken(MaterialTransaction));
     assignmentRepo = module.get(getRepositoryToken(SiteEngineerAssignment));
+    contractorRepo = module.get(getRepositoryToken(Contractor));
+    projectRepo = module.get(getRepositoryToken(Project));
   });
 
   it('should be defined', () => {
@@ -201,6 +224,22 @@ describe('MaterialsService', () => {
           rate: 350,
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should verify site access for contractor', async () => {
+      materialRepo.findOne.mockResolvedValue(mockMaterial);
+      contractorRepo.findOne.mockResolvedValue({ id: 'c-1', userId: 'user-c' });
+
+      await service.createTransaction('site-1', 'user-c', 'contractor', {
+        materialId: 'mat-1',
+        type: 'purchase',
+        date: '2026-09-09',
+        quantity: 10,
+        rate: 350,
+      });
+
+      expect(contractorRepo.findOne).toHaveBeenCalledWith({ where: { userId: 'user-c' } });
+      expect(transactionRepo.create).toHaveBeenCalled();
     });
   });
 

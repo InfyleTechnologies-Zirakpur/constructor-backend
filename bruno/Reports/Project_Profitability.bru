@@ -1,0 +1,19 @@
+meta {
+  name: Project Profitability Report
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/reports/projects/:projectId/profitability
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  projectId: {{projectId}}
+}

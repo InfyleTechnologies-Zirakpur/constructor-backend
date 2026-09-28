@@ -5,6 +5,8 @@ import { AttendanceService } from './attendance.service.js';
 import { Attendance } from './entities/attendance.entity.js';
 import { LabourRecord } from './entities/labour-record.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer
       Attendance,
       LabourRecord,
       SiteEngineerAssignment,
+      Contractor,
+      Project,
     ]),
   ],
   controllers: [AttendanceController],
@@ -19,3 +23,4 @@ import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer
   exports: [AttendanceService],
 })
 export class AttendanceModule {}
+

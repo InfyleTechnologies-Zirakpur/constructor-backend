@@ -1,0 +1,19 @@
+meta {
+  name: Site Material Report
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/reports/sites/:siteId/materials
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}

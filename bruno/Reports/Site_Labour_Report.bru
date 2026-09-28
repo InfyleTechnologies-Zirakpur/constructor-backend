@@ -1,0 +1,19 @@
+meta {
+  name: Site Labour Report
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/reports/sites/:siteId/labour
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  siteId: {{siteId}}
+}

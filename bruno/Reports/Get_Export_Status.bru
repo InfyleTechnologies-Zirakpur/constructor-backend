@@ -1,0 +1,19 @@
+meta {
+  name: Get Export Status
+  type: http
+  seq: 28
+}
+
+get {
+  url: {{baseUrl}}/reports/export/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{exportId}}
+}

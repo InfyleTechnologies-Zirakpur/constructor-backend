@@ -1,0 +1,25 @@
+meta {
+  name: Create Export Request
+  type: http
+  seq: 26
+}
+
+post {
+  url: {{baseUrl}}/reports/export
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "reportType": "project-summary",
+    "format": "csv",
+    "filters": {
+      "projectId": "{{projectId}}"
+    }
+  }
+}

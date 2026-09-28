@@ -1,0 +1,27 @@
+meta {
+  name: Verify OTP
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/verify-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "phone": "9876543210",
+    "otp": "123456"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200 || res.getStatus() === 201) {
+    const data = res.getBody();
+    if (data.success && data.data.accessToken) {
+      bru.setEnvVar("token", data.data.accessToken);
+    }
+  }
+}

@@ -8,6 +8,8 @@ import { Repository } from 'typeorm';
 import { Material } from './entities/material.entity.js';
 import { MaterialTransaction } from './entities/material-transaction.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
 import {
   CreateMaterialDto,
   CreateMaterialTransactionDto,
@@ -28,6 +30,12 @@ export class MaterialsService {
 
     @InjectRepository(SiteEngineerAssignment)
     private readonly assignmentRepo: Repository<SiteEngineerAssignment>,
+
+    @InjectRepository(Contractor)
+    private readonly contractorRepo: Repository<Contractor>,
+
+    @InjectRepository(Project)
+    private readonly projectRepo: Repository<Project>,
   ) {}
 
   // ═══════════════════════════════════════════════════
@@ -76,8 +84,8 @@ export class MaterialsService {
   // ═══════════════════════════════════════════════════
 
   /**
-   * Create a material transaction — purchase, request, issue, consumption, or return.
-   * Total cost is calculated server-side.
+   * Create a material transaction.
+   * Site engineers must be assigned to the site; contractors must own it.
    */
   async createTransaction(
     siteId: string,
@@ -85,9 +93,10 @@ export class MaterialsService {
     role: string,
     dto: CreateMaterialTransactionDto,
   ): Promise<MaterialTransaction> {
-    // Verify site access for site engineers
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
     }
 
     // Verify material exists
@@ -119,13 +128,22 @@ export class MaterialsService {
 
   /**
    * List transactions for a site with optional filters.
+   * Site engineers and contractors are subject to site-level isolation.
    */
   async listTransactions(
     siteId: string,
+    userId: string,
+    role: string,
     type?: string,
     materialId?: string,
     date?: string,
   ) {
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
+    }
+
     const query = this.transactionRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.material', 'material')
@@ -164,9 +182,15 @@ export class MaterialsService {
 
   /**
    * Get stock balance for a site (or a specific material on a site).
-   * Stock = sum(purchase + issue) - sum(consumption + return)
+   * Site engineers and contractors are subject to site-level isolation.
    */
-  async getStock(siteId: string, materialId?: string) {
+  async getStock(siteId: string, userId: string, role: string, materialId?: string) {
+    if (role === 'site_engineer') {
+      await this.verifySiteAccess(siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(siteId, userId);
+    }
+
     const query = this.transactionRepo
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.material', 'material')
@@ -300,4 +324,24 @@ export class MaterialsService {
       throw new ForbiddenException('You are not assigned to this site');
     }
   }
+
+  private async verifyContractorSiteAccess(
+    siteId: string,
+    userId: string,
+  ): Promise<void> {
+    const contractor = await this.contractorRepo.findOne({ where: { userId } });
+    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+
+    const project = await this.projectRepo
+      .createQueryBuilder('p')
+      .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
+      .where('ps.id = :siteId', { siteId })
+      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .getOne();
+
+    if (!project) {
+      throw new ForbiddenException('You do not have access to this site');
+    }
+  }
 }
+

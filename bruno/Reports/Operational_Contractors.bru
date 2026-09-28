@@ -1,0 +1,15 @@
+meta {
+  name: Operational Contractors Report
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/reports/operations/contractors
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

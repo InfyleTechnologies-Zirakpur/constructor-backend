@@ -1,0 +1,21 @@
+meta {
+  name: Direct Export Download
+  type: http
+  seq: 30
+}
+
+get {
+  url: {{baseUrl}}/reports/export/download?reportType=project-summary&format=csv&projectId={{projectId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:query {
+  reportType: project-summary
+  format: csv
+  projectId: {{projectId}}
+}

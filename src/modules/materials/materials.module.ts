@@ -5,6 +5,8 @@ import { MaterialsService } from './materials.service.js';
 import { Material } from './entities/material.entity.js';
 import { MaterialTransaction } from './entities/material-transaction.entity.js';
 import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer
       Material,
       MaterialTransaction,
       SiteEngineerAssignment,
+      Contractor,
+      Project,
     ]),
   ],
   controllers: [MaterialsController],
@@ -19,3 +23,4 @@ import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer
   exports: [MaterialsService],
 })
 export class MaterialsModule {}
+

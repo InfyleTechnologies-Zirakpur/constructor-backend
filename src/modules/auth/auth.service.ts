@@ -45,7 +45,7 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: '7d',
+      expiresIn: '15m',
     });
     const refreshToken = randomBytes(40).toString('hex');
     const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
@@ -134,8 +134,10 @@ export class AuthService {
     user.otpExpiresAt = expiresAt;
     await this.userRepository.save(user);
 
-    // Firebase will send SMS in prod — log for dev
-    this.logger.log(`[DEV MODE] OTP for ${dto.phone}: ${otp} — Firebase will send SMS in prod`);
+    // Firebase will send SMS in prod — only log OTP in non-production environments
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`[DEV] OTP for ${dto.phone}: ${otp}`);
+    }
 
     return {
       otpSent: true,
@@ -289,6 +291,16 @@ export class AuthService {
   // ════════════════════════════════════════════════════
 
   async register(dto: RegisterUserDto) {
+    // Public self-registration is restricted to job_seeker only.
+    // Privileged roles (admin, contractor, site_engineer, company) must be
+    // created via the admin-protected POST /users endpoint.
+    const SELF_REGISTER_ALLOWED: string[] = ['job_seeker'];
+    if (!SELF_REGISTER_ALLOWED.includes(dto.role)) {
+      throw new BadRequestException(
+        `Role '${dto.role}' cannot be self-registered. Contact an administrator.`,
+      );
+    }
+
     if (dto.email) {
       const existingUser = await this.userRepository.findOne({
         where: { email: dto.email },
@@ -349,8 +361,10 @@ export class AuthService {
       where: { email: dto.email },
     });
 
+    // Use the same generic error for both user-not-found and wrong password
+    // to prevent username enumeration.
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     if ((user as any).isBlocked) {

@@ -1,0 +1,15 @@
+meta {
+  name: List Saved Jobs
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/jobs/saved/list
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
