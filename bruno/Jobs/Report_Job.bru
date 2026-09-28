@@ -1,0 +1,25 @@
+meta {
+  name: Report Job
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/jobs/:id/report
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+params:path {
+  id: {{jobId}}
+}
+
+body:json {
+  {
+    "reason": "Suspicious listing or incorrect wage"
+  }
+}

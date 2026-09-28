@@ -582,6 +582,758 @@ Standard error response envelope:
 
 ---
 
+### Module 6: Companies & Verification Workflow (`/companies`)
+
+The Companies module handles business entity registration, corporate profile management, official document storage, and administrative verification. In the RBAC model, users with the `company` role own Company profiles which are required to publish job postings and hire workers.
+
+#### 1. Create Company Profile
+- **Endpoint**: `/companies`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`, `admin`
+- **Access Restrictions**: Automatically associates the company profile with the authenticated user ID (`req.user.id`). Newly created profiles receive an initial `verificationStatus: 'pending'`.
+- **Validation Rules**:
+  - `name`: string, required, non-empty.
+  - `contactEmail`: string, valid email format, required.
+  - `contactPhone`: string, non-empty, required.
+  - `registrationNumber`: string, optional.
+  - `gstNumber`: string, optional.
+  - `panNumber`: string, optional.
+  - `alternatePhone`: string, optional.
+  - `website`: string, optional.
+  - `address`: string, optional.
+  - `city`: string, optional.
+  - `state`: string, optional.
+  - `pincode`: string, optional.
+  - `businessType`: string, optional (e.g. `Pvt Ltd`, `Partnership`, `Proprietorship`).
+  - `yearEstablished`: integer number, optional.
+  - `teamSizeRange`: string, optional (e.g. `10-50`, `50-200`).
+  - `specializations`: array of strings, optional.
+  - `operationalAreas`: array of strings, optional.
+  - `logoUrl`: string URL, optional.
+  - `description`: text string, optional.
+  - `documentUrls`: array of string URLs, optional (AWS S3 file links).
+- **Example Request**:
+  ```bash
+  curl -X POST http://localhost:3000/companies \
+    -H "Authorization: Bearer <accessToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "name": "Apex Buildcon Pvt Ltd",
+      "registrationNumber": "U45200CH2020PTC012345",
+      "gstNumber": "04AABCA1234A1Z5",
+      "panNumber": "AABCA1234A",
+      "contactEmail": "contact@apexbuildcon.com",
+      "contactPhone": "9876543210",
+      "address": "Plot 42, Industrial Area Phase 1",
+      "city": "Chandigarh",
+      "state": "Chandigarh",
+      "pincode": "160002",
+      "businessType": "Pvt Ltd",
+      "yearEstablished": 2018,
+      "teamSizeRange": "50-200",
+      "specializations": ["Commercial", "Residential High-Rise"],
+      "operationalAreas": ["Punjab", "Haryana", "Chandigarh"],
+      "documentUrls": ["https://s3.amazonaws.com/constructor-docs/gst_cert.pdf"]
+    }'
+  ```
+- **Success Response (201 Created)**:
+  ```json
+  {
+    "message": "Company profile created successfully",
+    "data": {
+      "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+      "name": "Apex Buildcon Pvt Ltd",
+      "registrationNumber": "U45200CH2020PTC012345",
+      "gstNumber": "04AABCA1234A1Z5",
+      "panNumber": "AABCA1234A",
+      "contactEmail": "contact@apexbuildcon.com",
+      "contactPhone": "9876543210",
+      "address": "Plot 42, Industrial Area Phase 1",
+      "city": "Chandigarh",
+      "state": "Chandigarh",
+      "pincode": "160002",
+      "businessType": "Pvt Ltd",
+      "yearEstablished": 2018,
+      "teamSizeRange": "50-200",
+      "specializations": ["Commercial", "Residential High-Rise"],
+      "operationalAreas": ["Punjab", "Haryana", "Chandigarh"],
+      "verificationStatus": "pending",
+      "verificationRemarks": null,
+      "documentUrls": ["https://s3.amazonaws.com/constructor-docs/gst_cert.pdf"],
+      "userId": "b2f6c5d4-5678-4a90-8b12-123456abcdef",
+      "createdAt": "2026-09-28T10:00:00.000Z",
+      "updatedAt": "2026-09-28T10:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: Validation failure (missing required `name`, `contactEmail`, or `contactPhone`).
+  - `401 Unauthorized`: Missing or invalid JWT token.
+  - `403 Forbidden`: Role not authorized (e.g. `job_seeker` or `contractor`).
+
+---
+
+#### 2. Get My Company Profiles
+- **Endpoint**: `/companies/my-profiles`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`
+- **Access Restrictions**: Returns only companies owned by the authenticated user (`where: { userId: req.user.id }`).
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+        "name": "Apex Buildcon Pvt Ltd",
+        "contactEmail": "contact@apexbuildcon.com",
+        "contactPhone": "9876543210",
+        "city": "Chandigarh",
+        "verificationStatus": "pending",
+        "createdAt": "2026-09-28T10:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+#### 3. Update Company Profile
+- **Endpoint**: `/companies/:id`
+- **Method**: `PATCH`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`, `admin`
+- **Access Restrictions**: The calling user must own the company profile (`company.userId === req.user.id`). Violations throw `403 Forbidden: You do not own this company profile`.
+- **Validation Rules**: Accepts partial properties of `CreateCompanyDto`.
+- **Example Request**:
+  ```bash
+  curl -X PATCH http://localhost:3000/companies/e4f8b2c1-89ab-4cde-0123-456789abcdef \
+    -H "Authorization: Bearer <accessToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "website": "https://apexbuildcon.com",
+      "teamSizeRange": "200-500"
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Company profile updated successfully",
+    "data": {
+      "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+      "name": "Apex Buildcon Pvt Ltd",
+      "website": "https://apexbuildcon.com",
+      "teamSizeRange": "200-500",
+      "verificationStatus": "pending"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `403 Forbidden`: You do not own this company profile.
+  - `404 Not Found`: Company not found.
+
+---
+
+#### 4. List All Companies (Admin)
+- **Endpoint**: `/companies`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Query Parameters**:
+  - `page`: integer, optional (default: 1).
+  - `limit`: integer, optional (default: 10).
+  - `status`: optional filter by `verificationStatus` (`pending`, `verified`, `rejected`).
+- **Example Request**:
+  ```bash
+  curl -X GET "http://localhost:3000/companies?status=pending&page=1&limit=10" \
+    -H "Authorization: Bearer <adminToken>"
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+        "name": "Apex Buildcon Pvt Ltd",
+        "contactEmail": "contact@apexbuildcon.com",
+        "verificationStatus": "pending",
+        "createdAt": "2026-09-28T10:00:00.000Z"
+      }
+    ],
+    "total": 1
+  }
+  ```
+
+---
+
+#### 5. Get Company by ID (Admin)
+- **Endpoint**: `/companies/:id`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": {
+      "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+      "name": "Apex Buildcon Pvt Ltd",
+      "registrationNumber": "U45200CH2020PTC012345",
+      "gstNumber": "04AABCA1234A1Z5",
+      "verificationStatus": "pending",
+      "documentUrls": ["https://s3.amazonaws.com/constructor-docs/gst_cert.pdf"]
+    }
+  }
+  ```
+- **Error Responses**:
+  - `404 Not Found`: Company not found.
+
+---
+
+#### 6. Verify Company (Admin)
+- **Endpoint**: `/companies/:id/verify`
+- **Method**: `PATCH`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Validation Rules**:
+  - `verificationStatus`: enum (`pending`, `verified`, `rejected`), required.
+  - `verificationRemarks`: string, optional feedback or reason for rejection.
+- **Example Request**:
+  ```bash
+  curl -X PATCH http://localhost:3000/companies/e4f8b2c1-89ab-4cde-0123-456789abcdef/verify \
+    -H "Authorization: Bearer <adminToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "verificationStatus": "verified",
+      "verificationRemarks": "GST and PAN documents verified against government records."
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Company verification status updated",
+    "data": {
+      "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+      "name": "Apex Buildcon Pvt Ltd",
+      "verificationStatus": "verified",
+      "verificationRemarks": "GST and PAN documents verified against government records."
+    }
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: `verificationStatus must be one of the following values: pending, verified, rejected`.
+  - `403 Forbidden`: Admin role required.
+
+---
+
+### Module 7: Jobs & Moderation (`/jobs`)
+
+The Jobs module manages job postings published by verified Companies. Blue-collar and white-collar Job Seekers discover jobs, filter by wages and skills, save listings, report discrepancies, and submit job applications. The module enforces company ownership isolation, seeker visibility rules, and administrative moderation.
+
+#### 1. Create Job Posting
+- **Endpoint**: `/jobs`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`
+- **Access Restrictions**: The user must own an active `Company` profile. The job is automatically linked to the user's company and saved in `draft` status by default.
+- **Validation Rules**:
+  - `title`: string, required, non-empty.
+  - `location`: string, required, non-empty.
+  - `description`: text string, required, non-empty.
+  - `skills`: array of string skill tags, optional (e.g. `["Masonry", "Steel Bending"]`).
+  - `compensation`: numeric compensation amount, optional, min 0.
+  - `workforceRequired`: integer number of workers needed, optional, min 1 (default: 1).
+- **Example Request**:
+  ```bash
+  curl -X POST http://localhost:3000/jobs \
+    -H "Authorization: Bearer <accessToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "title": "Senior Mason & Shuttering Carpenter",
+      "location": "Mohali Sector 82, Punjab",
+      "skills": ["Masonry", "Formwork", "Shuttering"],
+      "description": "Urgent requirement for 5 skilled masons and shuttering carpenters for a 12-story residential project.",
+      "compensation": 950,
+      "workforceRequired": 5
+    }'
+  ```
+- **Success Response (201 Created)**:
+  ```json
+  {
+    "message": "Job created successfully",
+    "data": {
+      "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "title": "Senior Mason & Shuttering Carpenter",
+      "location": "Mohali Sector 82, Punjab",
+      "skills": ["Masonry", "Formwork", "Shuttering"],
+      "description": "Urgent requirement for 5 skilled masons and shuttering carpenters for a 12-story residential project.",
+      "compensation": 950,
+      "dailyPay": 0,
+      "workforceRequired": 5,
+      "projectType": "Full-time",
+      "experienceLevel": "Any",
+      "status": "draft",
+      "companyId": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+      "createdAt": "2026-09-28T10:15:00.000Z",
+      "updatedAt": "2026-09-28T10:15:00.000Z"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `404 Not Found`: Company profile not found. Please create a company profile first.
+
+---
+
+#### 2. List Jobs (Role-Scoped & Filterable)
+- **Endpoint**: `/jobs`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `company`, `job_seeker`
+- **Role-Based Visibility**:
+  - `admin`: sees all jobs across the platform across all statuses.
+  - `company`: sees only jobs created by their company.
+  - `job_seeker`: sees only `published` jobs, returned in a mobile-optimized shape containing `saved` (bookmarked) and `applied` status flags for each listing.
+- **Query Parameters**:
+  - `page`: integer (default: 1).
+  - `limit`: integer (default: 10).
+  - `search`: string (matches against job title or description).
+  - `location`: string (matches against location).
+  - `minDailyPay`: numeric minimum daily wage threshold (`dailyPay >= minDailyPay`).
+  - `skill`: string (filters jobs matching skill name).
+  - `projectType`: string (e.g. `Full-time`, `Contract`, `Daily Wage`).
+  - `experienceLevel`: string (e.g. `Fresher`, `Experienced`, `Any`).
+- **Example Request**:
+  ```bash
+  curl -X GET "http://localhost:3000/jobs?location=Mohali&search=Mason&page=1&limit=10" \
+    -H "Authorization: Bearer <seekerToken>"
+  ```
+- **Success Response (Job Seeker View - 200 OK)**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+        "title": "Senior Mason & Shuttering Carpenter",
+        "company": "Apex Buildcon Pvt Ltd",
+        "location": "Mohali Sector 82, Punjab",
+        "dailyPay": 950,
+        "skills": ["Masonry", "Formwork", "Shuttering"],
+        "description": "Urgent requirement for 5 skilled masons and shuttering carpenters...",
+        "requirements": ["Minimum 2 years experience", "Own tools preferred"],
+        "saved": false,
+        "applied": false,
+        "projectType": "Full-time",
+        "experienceLevel": "Experienced"
+      }
+    ],
+    "total": 1
+  }
+  ```
+- **Success Response (Admin / Company View - 200 OK)**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+        "title": "Senior Mason & Shuttering Carpenter",
+        "status": "published",
+        "workforceRequired": 5,
+        "company": {
+          "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+          "name": "Apex Buildcon Pvt Ltd"
+        }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10
+  }
+  ```
+
+---
+
+#### 3. Get Job by ID
+- **Endpoint**: `/jobs/:id`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `company`, `job_seeker`
+- **Access Restrictions**:
+  - `job_seeker` can only view jobs with `status: 'published'`. Non-published jobs return `404 Not Found`.
+  - `company` can only view jobs belonging to their own company profile.
+  - `admin` can view any job.
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": {
+      "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "title": "Senior Mason & Shuttering Carpenter",
+      "location": "Mohali Sector 82, Punjab",
+      "skills": ["Masonry", "Formwork", "Shuttering"],
+      "description": "Urgent requirement for 5 skilled masons...",
+      "compensation": 950,
+      "dailyPay": 950,
+      "workforceRequired": 5,
+      "status": "published",
+      "company": {
+        "id": "e4f8b2c1-89ab-4cde-0123-456789abcdef",
+        "name": "Apex Buildcon Pvt Ltd",
+        "city": "Chandigarh"
+      }
+    }
+  }
+  ```
+- **Error Responses**:
+  - `403 Forbidden`: You do not have access to this job.
+  - `404 Not Found`: Job not found or not published.
+
+---
+
+#### 4. Update Job Posting
+- **Endpoint**: `/jobs/:id`
+- **Method**: `PATCH`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`
+- **Access Restrictions**: Company ownership verification. Only the company that created the job can update it.
+- **Validation Rules**: Accepts partial properties of `CreateJobDto` plus optional `status` (`draft`, `published`, `closed`).
+- **Example Request**:
+  ```bash
+  curl -X PATCH http://localhost:3000/jobs/f5a7c3d2-1234-5678-9abc-def012345678 \
+    -H "Authorization: Bearer <companyToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "status": "published",
+      "compensation": 1000
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Job updated successfully",
+    "data": {
+      "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "status": "published",
+      "compensation": 1000
+    }
+  }
+  ```
+
+---
+
+#### 5. Close Job Posting
+- **Endpoint**: `/jobs/:id/close`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`
+- **Access Restrictions**: Calling user must own the company that posted the job. Transitions job status to `closed`.
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Job closed successfully",
+    "data": {
+      "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "status": "closed"
+    }
+  }
+  ```
+
+---
+
+#### 6. Toggle Save Job (Job Seeker Bookmark)
+- **Endpoint**: `/jobs/:id/save`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `job_seeker`
+- **Description**: Idempotent toggle endpoint. If the job is already saved, it removes the bookmark; otherwise, it saves it.
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": {
+      "saved": true,
+      "jobId": "f5a7c3d2-1234-5678-9abc-def012345678"
+    }
+  }
+  ```
+
+---
+
+#### 7. List Saved Jobs
+- **Endpoint**: `/jobs/saved/list`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `job_seeker`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+        "title": "Senior Mason & Shuttering Carpenter",
+        "company": "Apex Buildcon Pvt Ltd",
+        "location": "Mohali Sector 82, Punjab",
+        "dailyPay": 950,
+        "skills": ["Masonry", "Formwork", "Shuttering"],
+        "saved": true,
+        "applied": false
+      }
+    ],
+    "total": 1
+  }
+  ```
+
+---
+
+#### 8. Report Job Posting
+- **Endpoint**: `/jobs/:id/report`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `job_seeker`
+- **Validation Rules**: `{ "reason": string }` (non-empty string describing the issue).
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Job reported",
+    "data": {
+      "reported": true,
+      "jobId": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "reason": "Incorrect daily wage specified upon arrival",
+      "reportedBy": "c1f7b8e0-1234-4a56-8b90-abcdef123456"
+    }
+  }
+  ```
+
+---
+
+#### 9. Moderate Job (Admin)
+- **Endpoint**: `/jobs/:id/moderate`
+- **Method**: `PATCH`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`
+- **Validation Rules**:
+  - `status`: enum (`published`, `rejected`, `closed`), required.
+  - `moderationRemarks`: string, optional feedback explaining moderation action.
+- **Example Request**:
+  ```bash
+  curl -X PATCH http://localhost:3000/jobs/f5a7c3d2-1234-5678-9abc-def012345678/moderate \
+    -H "Authorization: Bearer <adminToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "status": "rejected",
+      "moderationRemarks": "Violates fair wage guidelines."
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Job moderated successfully",
+    "data": {
+      "id": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "status": "rejected",
+      "moderationRemarks": "Violates fair wage guidelines."
+    }
+  }
+  ```
+
+---
+
+### Module 8: Job Applications & Candidate Pipeline (`/applications`)
+
+The Applications module bridges Job Seekers and Companies. Seekers apply with daily wage expectations, availability, and contact numbers. Companies review applicant profiles, update candidate statuses through a multi-stage pipeline (`pending` -> `reviewed` -> `shortlisted` -> `accepted` / `rejected`), perform bulk shortlisting, and communicate updates via push notifications.
+
+#### 1. Submit Application
+- **Endpoint**: `/applications/jobs/:jobId/apply`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `job_seeker`
+- **Access Restrictions**:
+  - The target job must exist and have `status: 'published'`.
+  - Duplicate applications are prevented (a worker cannot apply to the same job twice).
+- **Validation Rules**:
+  - `coverNote`: string, optional personal message or note.
+  - `expectedDailyWage`: numeric daily wage expectation, optional, min 0.
+  - `skills`: array of strings, optional.
+  - `experienceYears`: numeric years of trade experience, optional, min 0.
+  - `availableFrom`: ISO date string, optional.
+  - `contactPhone`: string phone number, optional.
+- **Example Request**:
+  ```bash
+  curl -X POST http://localhost:3000/applications/jobs/f5a7c3d2-1234-5678-9abc-def012345678/apply \
+    -H "Authorization: Bearer <seekerToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "coverNote": "5 years experienced mason, ready to join immediately.",
+      "expectedDailyWage": 950,
+      "skills": ["Masonry", "Brickwork", "Plastering"],
+      "experienceYears": 5,
+      "availableFrom": "2026-10-01",
+      "contactPhone": "9876543210"
+    }'
+  ```
+- **Success Response (201 Created)**:
+  ```json
+  {
+    "message": "Application submitted successfully",
+    "data": {
+      "id": "a1b2c3d4-0000-1111-2222-333344445555",
+      "jobId": "f5a7c3d2-1234-5678-9abc-def012345678",
+      "userId": "c1f7b8e0-1234-4a56-8b90-abcdef123456",
+      "status": "pending",
+      "coverNote": "5 years experienced mason, ready to join immediately.",
+      "expectedDailyWage": 950,
+      "skills": ["Masonry", "Brickwork", "Plastering"],
+      "experienceYears": 5,
+      "availableFrom": "2026-10-01",
+      "contactPhone": "9876543210",
+      "createdAt": "2026-09-28T10:30:00.000Z"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: You have already applied for this job.
+  - `404 Not Found`: Job not found or not published.
+
+---
+
+#### 2. List Applications
+- **Endpoint**: `/applications`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `company`, `job_seeker`
+- **Role-Based Visibility**:
+  - `job_seeker`: sees only their own submitted applications.
+  - `company`: sees applications submitted to jobs posted by their company.
+  - `admin`: sees all applications across the platform.
+- **Query Parameters**:
+  - `page`: integer (default: 1).
+  - `limit`: integer (default: 10).
+  - `status`: optional filter (`pending`, `reviewed`, `shortlisted`, `accepted`, `rejected`, `withdrawn`).
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "a1b2c3d4-0000-1111-2222-333344445555",
+        "jobId": "f5a7c3d2-1234-5678-9abc-def012345678",
+        "status": "pending",
+        "expectedDailyWage": 950,
+        "job": {
+          "title": "Senior Mason & Shuttering Carpenter",
+          "location": "Mohali Sector 82, Punjab"
+        },
+        "user": {
+          "fullName": "Ramesh Kumar",
+          "phone": "9876543210"
+        }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10
+  }
+  ```
+
+---
+
+#### 3. Get Application by ID
+- **Endpoint**: `/applications/:id`
+- **Method**: `GET`
+- **Authentication**: Bearer JWT
+- **Roles**: `admin`, `company`, `job_seeker`
+- **Access Restrictions**: Job Seekers can only access their own applications. Companies can only access applications for their company's jobs.
+- **Success Response (200 OK)**: Application object with nested job, company, and applicant user details.
+
+---
+
+#### 4. Update Application Status
+- **Endpoint**: `/applications/:id/status`
+- **Method**: `PATCH`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`, `admin`
+- **Access Restrictions**: The company user must own the job associated with the application.
+- **Validation Rules**:
+  - `status`: enum (`pending`, `reviewed`, `shortlisted`, `accepted`, `rejected`), required.
+  - `reviewRemarks`: string, optional feedback from employer.
+- **Example Request**:
+  ```bash
+  curl -X PATCH http://localhost:3000/applications/a1b2c3d4-0000-1111-2222-333344445555/status \
+    -H "Authorization: Bearer <companyToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "status": "shortlisted",
+      "reviewRemarks": "Candidate meets trade criteria. Contacting for site trial."
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Application status updated",
+    "data": {
+      "id": "a1b2c3d4-0000-1111-2222-333344445555",
+      "status": "shortlisted",
+      "reviewRemarks": "Candidate meets trade criteria. Contacting for site trial."
+    }
+  }
+  ```
+
+---
+
+#### 5. Bulk Shortlist Applications
+- **Endpoint**: `/applications/bulk-shortlist`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `company`, `admin`
+- **Access Restrictions**: Companies can only shortlist candidates for jobs they own.
+- **Validation Rules**:
+  - `applicationIds`: array of UUID strings, required, non-empty.
+- **Example Request**:
+  ```bash
+  curl -X POST http://localhost:3000/applications/bulk-shortlist \
+    -H "Authorization: Bearer <companyToken>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "applicationIds": [
+        "a1b2c3d4-0000-1111-2222-333344445555",
+        "b2c3d4e5-1111-2222-3333-444455556666"
+      ]
+    }'
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "2 applications shortlisted",
+    "data": {
+      "updated": 2,
+      "ids": [
+        "a1b2c3d4-0000-1111-2222-333344445555",
+        "b2c3d4e5-1111-2222-3333-444455556666"
+      ]
+    }
+  }
+  ```
+
+---
+
+#### 6. Withdraw Application
+- **Endpoint**: `/applications/:id/withdraw`
+- **Method**: `POST`
+- **Authentication**: Bearer JWT
+- **Roles**: `job_seeker`
+- **Access Restrictions**: Only the applicant can withdraw their application. Applications that are already `accepted` cannot be withdrawn.
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Application withdrawn",
+    "data": {
+      "id": "a1b2c3d4-0000-1111-2222-333344445555",
+      "status": "withdrawn"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: Cannot withdraw an already accepted application.
+  - `403 Forbidden`: You can only withdraw your own applications.
+
+---
+
 ## 🧪 Testing with Bruno
 
 The repository includes a ready-to-run [Bruno](https://www.usebruno.com/) collection inside the `bruno/` directory:
@@ -590,6 +1342,9 @@ The repository includes a ready-to-run [Bruno](https://www.usebruno.com/) collec
 | :--- | :--- |
 | `bruno/Auth/` | `Register`, `Login`, `Request OTP`, `Verify OTP`, `Reset Password`, `Refresh Token`, `Logout`, `Get Me` |
 | `bruno/Users/` | `List All Users`, `Create User`, `Admin Update User`, `Deactivate User`, `Get Profile`, `Update Profile` |
+| `bruno/Companies/` | `Create Company`, `My Companies`, `Update Company`, `List Companies`, `Get Company`, `Verify Company` |
+| `bruno/Jobs/` | `Create Job`, `List Jobs`, `Get Job`, `Update Job`, `Close Job`, `Toggle Save Job`, `List Saved Jobs`, `Report Job`, `Moderate Job` |
+| `bruno/Applications/` | `Apply to Job`, `List Applications`, `Get Application`, `Update Application Status`, `Bulk Shortlist`, `Withdraw Application` |
 | `bruno/Projects/` | `Create Project`, `List Projects Admin`, `My Projects`, `Get Project`, `Update Project`, `Get Stats` |
 | `bruno/Site-Engineers/` | `Create Site Engineer`, `List Site Engineers`, `My Profile`, `Get Site Engineer`, `Get Stats` |
 | `bruno/Attendance/` | `Site Check In`, `Site Check Out`, `Create Labour Record`, `Get Labour Records`, `List Attendance` |
