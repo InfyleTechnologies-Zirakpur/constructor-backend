@@ -7,6 +7,7 @@ import { Job } from '../jobs/entities/job.entity.js';
 import { Application } from '../applications/entities/application.entity.js';
 import { ConversationsController } from './conversations.controller.js';
 import { ConversationsService } from './conversations.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ConversationsService } from './conversations.service.js';
       Job,
       Application,
     ]),
+    NotificationsModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService],

@@ -12,6 +12,8 @@ import { Company } from '../companies/entities/company.entity.js';
 import { CreateApplicationDto } from './dto/create-applications.dto.js';
 import { UpdateApplicationStatusDto } from './dto/update-applications.dto.js';
 import { ConversationsService } from '../conversations/conversations.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class ApplicationsService {
@@ -25,7 +27,11 @@ export class ApplicationsService {
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
 
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+
     private readonly conversationsService: ConversationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -77,6 +83,19 @@ export class ApplicationsService {
         userId,
         jobId,
         saved.id,
+      );
+
+      // P1: Notify company that posted the job
+      const seeker = await this.userRepository.findOne({
+        where: { id: userId },
+        select: { id: true, fullName: true },
+      });
+      await this.notificationsService.notifySeekerApplied(
+        jobWithCompany.title,
+        seeker?.fullName || 'A candidate',
+        saved.id,
+        jobId,
+        jobWithCompany.company.userId,
       );
     }
     // Company sees this via GET /applications (role=company) — now includes seeker docs/skills/city
@@ -216,6 +235,17 @@ export class ApplicationsService {
     }
 
     const saved = await this.applicationRepository.save(application);
+
+    // P1: Notify seeker about status update
+    if (application.userId) {
+      await this.notificationsService.notifyApplicationStatus(
+        application.job?.title || 'the position',
+        dto.status,
+        application.id,
+        application.jobId,
+        application.userId,
+      );
+    }
 
     // Create conversation when shortlisted/accepted — triggers interview invite
     if (dto.status === 'shortlisted' || dto.status === 'accepted') {

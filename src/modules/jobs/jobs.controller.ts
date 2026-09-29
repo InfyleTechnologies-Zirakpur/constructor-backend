@@ -12,6 +12,8 @@ import {
 import { JobsService } from './jobs.service.js';
 import { CreateJobDto } from './dto/create-jobs.dto.js';
 import { UpdateJobDto, ModerateJobDto } from './dto/update-jobs.dto.js';
+import { CreateApplicationDto } from '../applications/dto/create-applications.dto.js';
+import { ApplicationsService } from '../applications/applications.service.js';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -19,7 +21,28 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 @Controller('jobs')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly applicationsService: ApplicationsService,
+  ) {}
+
+  /**
+   * POST /jobs/:id/applications — Job Seeker applies to a job.
+   */
+  @Post(':id/applications')
+  @Roles('job_seeker')
+  async applyToJob(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: CreateApplicationDto,
+  ) {
+    const application = await this.applicationsService.apply(
+      id,
+      req.user.id,
+      dto,
+    );
+    return { message: 'Application submitted successfully', data: application };
+  }
 
   @Post()
   @Roles('company')

@@ -10,14 +10,15 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
-import type { UserRole } from '../../common/types/role.enum.js';
 import { User } from '../users/entities/user.entity.js';
+import { DeviceToken } from '../notifications/entities/device-token.entity.js';
 import type { LoginUserDto } from './dto/login-user.dto.js';
 import type { RegisterUserDto } from './dto/register-user.dto.js';
 import type { RequestOtpDto } from './dto/request-otp.dto.js';
 import type { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
 import type { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import type { UserRole } from '../../common/types/role.enum.js';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -27,6 +28,8 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    @InjectRepository(DeviceToken)
+    private readonly deviceTokenRepo: Repository<DeviceToken>,
   ) {}
 
   private async generateTokens(user: User) {
@@ -442,7 +445,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async logout(userId: string) {
+  async logout(userId: string, fcmToken?: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     // Bump version to invalidate all accessTokens immediately (other device kicked)
@@ -451,6 +454,17 @@ export class AuthService {
     user.otpHash = null;
     user.otpExpiresAt = null;
     await this.userRepository.save(user);
+
+    // Deactivate FCM device token so logged out user does not receive push notifications
+    if (fcmToken) {
+      await this.deviceTokenRepo.update(
+        { userId, token: fcmToken },
+        { isActive: false },
+      );
+    } else {
+      await this.deviceTokenRepo.update({ userId }, { isActive: false });
+    }
+
     return { loggedOut: true };
   }
 }

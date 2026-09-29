@@ -35,11 +35,44 @@ import { WorkerAppModule } from './modules/worker-app/worker-app.module.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const redisUrl =
+          config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+        try {
+          const parsed = new URL(redisUrl);
+          return {
+            connection: {
+              host: parsed.hostname || 'localhost',
+              port: parsed.port ? parseInt(parsed.port, 10) : 6379,
+              username: parsed.username || undefined,
+              password: parsed.password || undefined,
+              maxRetriesPerRequest: null,
+              enableOfflineQueue: true,
+              retryStrategy: (times: number) => Math.min(times * 1000, 10000),
+            },
+          };
+        } catch {
+          return {
+            connection: {
+              host: 'localhost',
+              port: 6379,
+              maxRetriesPerRequest: null,
+              enableOfflineQueue: true,
+              retryStrategy: (times: number) => Math.min(times * 1000, 10000),
+            },
+          };
+        }
+      },
+    }),
     PassportModule,
     // Rate limiting: global defaults (overridable per-route with @Throttle)
     ThrottlerModule.forRoot([

@@ -1,0 +1,18 @@
+meta {
+  name: List Admin Notifications
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/notifications/admin?page=1&limit=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  limit: 20
+  ~event: admin_announcement
+  ~search: announcement
+}
