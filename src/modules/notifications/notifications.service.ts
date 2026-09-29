@@ -445,6 +445,27 @@ export class NotificationsService {
     await this.executeFanoutNotificationJob(jobData);
   }
 
+  /**
+   * Generic notification dispatcher for one or multiple recipients.
+   */
+  async notify(
+    recipientUserIds: string[],
+    type: string,
+    title: string,
+    message: string,
+    referenceId?: string,
+    data?: Record<string, any>,
+  ): Promise<void> {
+    await this.dispatchFanoutP3(
+      recipientUserIds,
+      type,
+      title,
+      message,
+      referenceId,
+      data,
+    );
+  }
+
   // ═══════════════════════════════════════════════════
   //  CENTRALIZED HIGH-LEVEL EVENT TRIGGERS
   // ═══════════════════════════════════════════════════

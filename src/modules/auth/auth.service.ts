@@ -55,7 +55,8 @@ export class AuthService {
 
     user.refreshTokenHash = refreshTokenHash;
     user.lastLoginAt = new Date();
-    user.loginCount = ((user as any).loginCount ?? 0) + 1;
+    const currentLoginCount = Number((user as any).loginCount) || 0;
+    user.loginCount = (currentLoginCount < 0 || currentLoginCount > 1000000000 ? 0 : currentLoginCount) + 1;
     user.failedLoginAttempts = 0;
     user.lockoutUntil = null;
     await this.userRepository.save(user);
@@ -200,7 +201,8 @@ export class AuthService {
         }
 
         (user as any).phoneVerified = true;
-        (user as any).tokenVersion = ((user as any).tokenVersion ?? 0) + 1;
+        const currentVersionFb = Number((user as any).tokenVersion) || 0;
+        (user as any).tokenVersion = (currentVersionFb < 0 || currentVersionFb > 1000000000 ? 0 : currentVersionFb) + 1;
         (user as any).otpHash = null;
         (user as any).otpExpiresAt = null;
         await this.userRepository.save(user as User);
@@ -239,7 +241,8 @@ export class AuthService {
     }
 
     // Single-session: bump tokenVersion to kick old devices
-    (user as any).tokenVersion = ((user as any).tokenVersion ?? 0) + 1;
+    const currentVersionOtp = Number((user as any).tokenVersion) || 0;
+    (user as any).tokenVersion = (currentVersionOtp < 0 || currentVersionOtp > 1000000000 ? 0 : currentVersionOtp) + 1;
     // Mark phone verified on successful OTP
     (user as any).phoneVerified = true;
     // Clear OTP after successful verification
@@ -393,7 +396,10 @@ export class AuthService {
       user.passwordHash as string,
     );
     if (!isPasswordValid) {
-      user.failedLoginAttempts = ((user as any).failedLoginAttempts ?? 0) + 1;
+      const attempts = Number((user as any).failedLoginAttempts) || 0;
+      // Sanitize corrupted/overflowed value from previous string concatenations (>20 digits)
+      const safeAttempts = attempts < 0 || attempts > 20 ? 0 : attempts;
+      user.failedLoginAttempts = safeAttempts + 1;
       if (user.failedLoginAttempts >= 5) {
         const lock = new Date();
         lock.setMinutes(lock.getMinutes() + 15);
@@ -404,7 +410,8 @@ export class AuthService {
     }
 
     // Single-session: bump tokenVersion to logout other devices/browsers
-    (user as any).tokenVersion = ((user as any).tokenVersion ?? 0) + 1;
+    const currentVersionLogin = Number((user as any).tokenVersion) || 0;
+    (user as any).tokenVersion = (currentVersionLogin < 0 || currentVersionLogin > 1000000000 ? 0 : currentVersionLogin) + 1;
     await this.userRepository.save(user);
 
     const tokens = await this.generateTokens(user);
@@ -449,7 +456,8 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     // Bump version to invalidate all accessTokens immediately (other device kicked)
-    (user as any).tokenVersion = ((user as any).tokenVersion ?? 0) + 1;
+    const currentVersionLogout = Number((user as any).tokenVersion) || 0;
+    (user as any).tokenVersion = (currentVersionLogout < 0 || currentVersionLogout > 1000000000 ? 0 : currentVersionLogout) + 1;
     user.refreshTokenHash = null;
     user.otpHash = null;
     user.otpExpiresAt = null;

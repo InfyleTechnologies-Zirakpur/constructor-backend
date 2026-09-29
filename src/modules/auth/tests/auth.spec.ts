@@ -58,7 +58,8 @@ const buildService = () => {
 
     const isValid = await (bcrypt as any).compare(dto.password, user.passwordHash);
     if (!isValid) {
-      user.failedLoginAttempts = (user.failedLoginAttempts ?? 0) + 1;
+      const attempts = Number(user.failedLoginAttempts) || 0;
+      user.failedLoginAttempts = attempts + 1;
       if (user.failedLoginAttempts >= 5) {
         const lock = new Date();
         lock.setMinutes(lock.getMinutes() + 15);

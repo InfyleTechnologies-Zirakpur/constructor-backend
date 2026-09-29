@@ -32,6 +32,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DocumentsModule } from './modules/documents/documents.module.js';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { WorkerAppModule } from './modules/worker-app/worker-app.module.js';
+import { ConversationsModule } from './modules/conversations/conversations.module.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
@@ -116,6 +117,7 @@ import { BullModule } from '@nestjs/bullmq';
     DocumentsModule,
     AuditLogsModule,
     WorkerAppModule,
+    ConversationsModule,
   ],
   controllers: [
     AppController,
