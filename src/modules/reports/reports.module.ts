@@ -20,6 +20,7 @@ import { Application } from '../applications/entities/application.entity.js';
 import { AttendanceModule } from '../attendance/attendance.module.js';
 import { MaterialsModule } from '../materials/materials.module.js';
 import { ExpensesModule } from '../expenses/expenses.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ExpensesModule } from '../expenses/expenses.module.js';
     AttendanceModule,
     MaterialsModule,
     ExpensesModule,
+    NotificationsModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

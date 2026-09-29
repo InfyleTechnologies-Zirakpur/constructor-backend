@@ -291,10 +291,15 @@ export class AuthService {
   // ════════════════════════════════════════════════════
 
   async register(dto: RegisterUserDto) {
-    // Public self-registration is restricted to job_seeker only.
-    // Privileged roles (admin, contractor, site_engineer, company) must be
-    // created via the admin-protected POST /users endpoint.
-    const SELF_REGISTER_ALLOWED: string[] = ['job_seeker'];
+    // Public self-registration: job_seeker (OTP/auto) + company + contractor
+    // self-register per docs §4.1 ("Contractor registration/profile...").
+    // Site engineers are created by their contractor (POST /site-engineers);
+    // admin accounts are seeded, never self-registered.
+    const SELF_REGISTER_ALLOWED: string[] = [
+      'job_seeker',
+      'company',
+      'contractor',
+    ];
     if (!SELF_REGISTER_ALLOWED.includes(dto.role)) {
       throw new BadRequestException(
         `Role '${dto.role}' cannot be self-registered. Contact an administrator.`,

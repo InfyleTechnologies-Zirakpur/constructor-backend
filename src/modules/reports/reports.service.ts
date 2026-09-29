@@ -26,6 +26,7 @@ import { Application } from '../applications/entities/application.entity.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { MaterialsService } from '../materials/materials.service.js';
 import { ExpensesService } from '../expenses/expenses.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CreateDailyReportDto } from './dto/create-reports.dto.js';
 import { UpdateReportStatusDto } from './dto/update-reports.dto.js';
 import {
@@ -91,6 +92,7 @@ export class ReportsService {
     private readonly attendanceService: AttendanceService,
     private readonly materialsService: MaterialsService,
     private readonly expensesService: ExpensesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ═══════════════════════════════════════════════════
@@ -174,6 +176,41 @@ export class ReportsService {
         labourCost + materialCost + expenseCost + Number(report.otherCosts);
       report.estimatedProfit =
         Number(report.dailyRevenue) - report.totalDailyCost;
+
+      // Notify contractor (project owner) + admins — never break submit on push failure
+      try {
+        const recipientIds = new Set<string>();
+        const site = await this.siteRepo.findOne({
+          where: { id: report.siteId },
+        });
+        if (site) {
+          const project = await this.projectRepo.findOne({
+            where: { id: site.projectId },
+          });
+          if (project) {
+            const contractor = await this.contractorRepo.findOne({
+              where: { id: project.contractorId },
+            });
+            if (contractor) recipientIds.add(contractor.userId);
+          }
+        }
+        const admins = await this.userRepo.find({
+          where: { role: 'admin' },
+        });
+        admins.forEach((a) => recipientIds.add(a.id));
+        recipientIds.delete(userId); // don't notify the submitter
+        if (recipientIds.size > 0) {
+          await this.notificationsService.notify(
+            [...recipientIds],
+            'daily_report_submitted',
+            'Daily report submitted',
+            `Site report for ${report.date} submitted — daily cost ${report.totalDailyCost}`,
+            report.id,
+          );
+        }
+      } catch (e: any) {
+        this.logger.warn(`Report submit notification failed: ${e?.message}`);
+      }
     } else if (dto.status === 'reviewed') {
       if (report.status !== 'submitted') {
         throw new BadRequestException('Only submitted reports can be reviewed');
