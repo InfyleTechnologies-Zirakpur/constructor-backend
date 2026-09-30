@@ -1,0 +1,23 @@
+meta {
+  name: Apply to Job (Direct)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/jobs/:id/applications
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{jobId}}
+}
+
+body:json {
+  {
+    "coverNote": "I am interested in this position.",
+    "experience": "4 years electrical experience",
+    "availability": "Immediate"
+  }
+}

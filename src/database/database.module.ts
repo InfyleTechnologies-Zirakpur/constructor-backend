@@ -20,13 +20,26 @@ import { Document } from '../modules/documents/entities/document.entity.js';
 import { Notification } from '../modules/notifications/entities/notification.entity.js';
 import { AuditLog } from '../modules/audit-logs/entities/audit-log.entity.js';
 import { DeviceToken } from '../modules/notifications/entities/device-token.entity.js';
+import { Conversation } from '../modules/conversations/entities/conversation.entity.js';
+import { Message } from '../modules/conversations/entities/message.entity.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+// @ts-ignore - pg types declared in src/types/pg.d.ts
+import { types as pgTypes } from 'pg';
+
+// CockroachDB maps integer types to INT8 (64-bit integer, OID 20).
+// By default, node-pg returns INT8 as string to prevent 64-bit precision loss.
+// This causes arithmetic operations (+ 1) to perform string concatenation ("1" + 1 -> "11"),
+// eventually overflowing 64-bit integers with 20 digits ("11111111111111111111").
+// Parsing INT8 as a JavaScript number prevents this issue.
+pgTypes.setTypeParser(20, (val: string) => parseInt(val, 10));
+
 const databaseUrl =
   process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5432/construction_db';
 if (!databaseUrl) throw new Error('DATABASE_URL is not set');
+
 const entities = [
   User,
   Company,
@@ -48,6 +61,8 @@ const entities = [
   Notification,
   AuditLog,
   DeviceToken,
+  Conversation,
+  Message,
 ];
 
 @Module({

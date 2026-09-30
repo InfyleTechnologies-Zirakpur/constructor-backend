@@ -10,6 +10,7 @@ import { Message } from './entities/message.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { Job } from '../jobs/entities/job.entity.js';
 import { Application } from '../applications/entities/application.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class ConversationsService {
@@ -19,6 +20,7 @@ export class ConversationsService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Job) private readonly jobRepo: Repository<Job>,
     @InjectRepository(Application) private readonly appRepo: Repository<Application>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -137,6 +139,20 @@ export class ConversationsService {
       conv.unreadCountCompany += 1;
     }
     await this.convRepo.save(conv);
+
+    // P1: Notify the other participant (never the sender)
+    const recipientId =
+      conv.companyId === senderId ? conv.seekerId : conv.companyId;
+    const sender = await this.userRepo.findOne({
+      where: { id: senderId },
+      select: { id: true, fullName: true },
+    });
+    await this.notificationsService.notifyNewMessage(
+      sender?.fullName || 'User',
+      text,
+      conv.id,
+      recipientId,
+    );
 
     return message;
   }

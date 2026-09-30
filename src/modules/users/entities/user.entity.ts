@@ -86,16 +86,37 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date | null;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({
+    type: 'int',
+    default: 0,
+    transformer: {
+      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
+      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+    },
+  })
   loginCount: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({
+    type: 'int',
+    default: 0,
+    transformer: {
+      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
+      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+    },
+  })
   failedLoginAttempts: number;
 
   @Column({ type: 'timestamp', nullable: true })
   lockoutUntil: Date | null;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({
+    type: 'int',
+    default: 0,
+    transformer: {
+      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
+      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+    },
+  })
   tokenVersion: number; // bump to invalidate all old JWTs — single-session
 
   // ── Worker / Domain Profile (kept JSONB-flexible) ──

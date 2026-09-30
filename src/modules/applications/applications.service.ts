@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -12,9 +13,12 @@ import { Company } from '../companies/entities/company.entity.js';
 import { CreateApplicationDto } from './dto/create-applications.dto.js';
 import { UpdateApplicationStatusDto } from './dto/update-applications.dto.js';
 import { ConversationsService } from '../conversations/conversations.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class ApplicationsService {
+  private readonly logger = new Logger(ApplicationsService.name);
   constructor(
     @InjectRepository(Application)
     private readonly applicationRepository: Repository<Application>,
@@ -25,7 +29,11 @@ export class ApplicationsService {
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
 
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+
     private readonly conversationsService: ConversationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -72,12 +80,41 @@ export class ApplicationsService {
       relations: { company: true },
     });
     if (jobWithCompany?.company) {
-      await this.conversationsService.findOrCreate(
-        jobWithCompany.company.userId,
-        userId,
-        jobId,
-        saved.id,
-      );
+      try {
+        const conversation = await this.conversationsService.findOrCreate(
+          jobWithCompany.company.userId,
+          userId,
+          jobId,
+          saved.id,
+        );
+        (saved as any).conversationId = conversation?.id;
+        (saved as any).conversation = conversation;
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to create conversation for application ${saved.id}: ${err?.message}`,
+          err?.stack,
+        );
+      }
+
+      try {
+        // P1: Notify company that posted the job
+        const seeker = await this.userRepository.findOne({
+          where: { id: userId },
+          select: { id: true, fullName: true },
+        });
+        await this.notificationsService.notifySeekerApplied(
+          jobWithCompany.title,
+          seeker?.fullName || 'A candidate',
+          saved.id,
+          jobId,
+          jobWithCompany.company.userId,
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to notify company for application ${saved.id}: ${err?.message}`,
+          err?.stack,
+        );
+      }
     }
     // Company sees this via GET /applications (role=company) — now includes seeker docs/skills/city
     return saved;
@@ -216,6 +253,17 @@ export class ApplicationsService {
     }
 
     const saved = await this.applicationRepository.save(application);
+
+    // P1: Notify seeker about status update
+    if (application.userId) {
+      await this.notificationsService.notifyApplicationStatus(
+        application.job?.title || 'the position',
+        dto.status,
+        application.id,
+        application.jobId,
+        application.userId,
+      );
+    }
 
     // Create conversation when shortlisted/accepted — triggers interview invite
     if (dto.status === 'shortlisted' || dto.status === 'accepted') {
