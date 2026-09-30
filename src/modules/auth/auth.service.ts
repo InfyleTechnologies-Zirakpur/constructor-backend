@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
@@ -27,6 +28,7 @@ export class AuthService {
 
   constructor(
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(DeviceToken)
     private readonly deviceTokenRepo: Repository<DeviceToken>,
@@ -47,8 +49,9 @@ export class AuthService {
       ver: (user as any).tokenVersion ?? 0,
     };
 
+    const expiresIn = this.configService?.get<string>('JWT_EXPIRES_IN') || '7d';
     const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: '15m',
+      expiresIn: (expiresIn as any),
     });
     const refreshToken = randomBytes(40).toString('hex');
     const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
@@ -64,6 +67,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      expiresIn: 604800, // 7 days in seconds
     };
   }
 

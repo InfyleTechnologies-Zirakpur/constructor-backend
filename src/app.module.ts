@@ -96,9 +96,10 @@ import { BullModule } from '@nestjs/bullmq';
         if (!secret && process.env.NODE_ENV === 'production') {
           throw new Error('JWT_SECRET must be set in production');
         }
+        const expiresIn = config.get<string>('JWT_EXPIRES_IN') || '7d';
         return {
           secret: secret ?? 'dev-secret-key-not-for-production',
-          signOptions: { expiresIn: '15m' },
+          signOptions: { expiresIn: (expiresIn as any) },
         };
       },
     }),
