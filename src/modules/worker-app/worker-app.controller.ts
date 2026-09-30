@@ -124,32 +124,6 @@ export class WorkerAppController {
   }
 
   // ════════════════════════════════════════════════════
-  //  CONVERSATIONS (placeholder for messaging)
-  // ════════════════════════════════════════════════════
-
-  /**
-   * GET /conversations — List conversations.
-   */
-  @Get('conversations')
-  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
-  async listConversations(@Req() req: any) {
-    return this.workerAppService.listConversations(req.user.id);
-  }
-
-  /**
-   * POST /conversations/:conversationId/messages — Send a message.
-   */
-  @Post('conversations/:conversationId/messages')
-  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
-  async sendMessage(
-    @Req() req: any,
-    @Param('conversationId') conversationId: string,
-    @Body('text') text: string,
-  ) {
-    return this.workerAppService.sendMessage(req.user.id, conversationId, text);
-  }
-
-  // ════════════════════════════════════════════════════
   //  NOTIFICATIONS (Flutter-specific routes)
   // ════════════════════════════════════════════════════
 

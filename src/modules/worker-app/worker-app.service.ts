@@ -105,26 +105,47 @@ export class WorkerAppService {
 
     // Use global Documents system (Bunny → construction-site.b-cdn.net) for meaningful folders
     const ext = file.originalname.split('.').pop() || 'jpg';
-    const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0,30);
+    const sanitized = file.originalname
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 30);
     const now = new Date();
     const yyyy = now.getFullYear();
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const dd = String(now.getDate()).padStart(2,'0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
     const objectKey = `documents/user_avatar/${yyyy}/${mm}/${userId}/${dd}_${sanitized}_${Date.now().toString().slice(-6)}.${ext}`;
     // Upload via Bunny (same as documents.service)
     try {
       const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
-      const cfgPass = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
-      const cfgHost = process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
-      const cfgPull = process.env.BUNNY_CDN_URL ?? process.env.BUNNY_CDN_HOSTNAME ?? 'https://construction-site.b-cdn.net';
+      const cfgPass =
+        process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+      const cfgHost =
+        process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
+      const cfgPull =
+        process.env.BUNNY_CDN_URL ??
+        process.env.BUNNY_CDN_HOSTNAME ??
+        'https://construction-site.b-cdn.net';
       if (cfgZone && cfgPass) {
         const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
-        const res: any = await (global as any).fetch(url, { method: 'PUT', headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype }, body: file.buffer });
+        const res: any = await (global as any).fetch(url, {
+          method: 'PUT',
+          headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype },
+          body: file.buffer,
+        });
         if (!res.ok) throw new Error(await res.text());
-        const pull = cfgPull.startsWith('http') ? cfgPull : `https://${cfgPull}`;
-        const profilePhotoUrl = `${pull.replace(/\/$/,'')}/${objectKey}`;
+        const pull = cfgPull.startsWith('http')
+          ? cfgPull
+          : `https://${cfgPull}`;
+        const profilePhotoUrl = `${pull.replace(/\/$/, '')}/${objectKey}`;
         // also save as Document for File manager insights
-        const doc = this.documentRepo.create({ entityType: 'user_avatar', entityId: userId, objectKey, originalFilename: file.originalname, mimeType: file.mimetype, size: file.size, ownerId: userId } as any);
+        const doc = this.documentRepo.create({
+          entityType: 'user_avatar',
+          entityId: userId,
+          objectKey,
+          originalFilename: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          ownerId: userId,
+        } as any);
         await this.documentRepo.save(doc);
         user.avatarUrl = profilePhotoUrl;
         await this.userRepo.save(user);
@@ -134,7 +155,15 @@ export class WorkerAppService {
     // Fallback mock (still saves Document for File manager)
     const profilePhotoUrl = `https://construction-site.b-cdn.net/${objectKey}`;
     try {
-      const doc = this.documentRepo.create({ entityType: 'user_avatar', entityId: userId, objectKey, originalFilename: file.originalname, mimeType: file.mimetype, size: file.size, ownerId: userId } as any);
+      const doc = this.documentRepo.create({
+        entityType: 'user_avatar',
+        entityId: userId,
+        objectKey,
+        originalFilename: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        ownerId: userId,
+      } as any);
       await this.documentRepo.save(doc);
     } catch {}
     user.avatarUrl = profilePhotoUrl;
@@ -151,25 +180,37 @@ export class WorkerAppService {
     if (!type) throw new BadRequestException('Document type is required');
 
     const ext = file.originalname.split('.').pop() || 'pdf';
-    const base = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0,30);
+    const base = file.originalname
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 30);
     const now = new Date();
     const yyyy = now.getFullYear();
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const dd = String(now.getDate()).padStart(2,'0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
     const objectKey = `documents/worker_doc/${yyyy}/${mm}/${userId}/${dd}_${base}_${Date.now().toString().slice(-6)}.${ext}`;
 
     // Upload to Bunny for File manager insights (same as /documents/upload)
     try {
       const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
-      const cfgPass = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
-      const cfgHost = process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
+      const cfgPass =
+        process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+      const cfgHost =
+        process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
       if (cfgZone && cfgPass) {
         const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
-        await (global as any).fetch(url, { method: 'PUT', headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype }, body: file.buffer });
+        await (global as any).fetch(url, {
+          method: 'PUT',
+          headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype },
+          body: file.buffer,
+        });
       }
     } catch {}
 
-    const pull = (process.env.BUNNY_CDN_URL ?? process.env.BUNNY_CDN_HOSTNAME ?? 'https://construction-site.b-cdn.net').replace(/\/$/,'');
+    const pull = (
+      process.env.BUNNY_CDN_URL ??
+      process.env.BUNNY_CDN_HOSTNAME ??
+      'https://construction-site.b-cdn.net'
+    ).replace(/\/$/, '');
     const document = this.documentRepo.create({
       entityType: 'worker_doc',
       entityId: userId,
@@ -333,20 +374,6 @@ export class WorkerAppService {
       attendance: `${daysAttended} days`,
       notifications,
     };
-  }
-
-  // ════════════════════════════════════════════════════
-  //  CONVERSATIONS (placeholder)
-  // ════════════════════════════════════════════════════
-
-  async listConversations(_userId: string) {
-    // Messaging is not yet implemented — return empty list.
-    return { items: [] };
-  }
-
-  async sendMessage(_userId: string, _conversationId: string, _text: string) {
-    // Messaging is not yet implemented — acknowledge the message.
-    return { sent: true };
   }
 
   // ════════════════════════════════════════════════════

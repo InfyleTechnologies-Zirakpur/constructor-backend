@@ -1,0 +1,21 @@
+meta {
+  name: Candidate Reply
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/conversations/:id/messages
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{conversationId}}
+}
+
+body:json {
+  {
+    "text": "Thank you for shortlisting me! I confirm that Monday at 10:00 AM works for me."
+  }
+}

@@ -259,8 +259,17 @@ export class ApplicationsService {
         application.id,
       );
 
-      // If a remark was provided, send it as a message so the seeker can see it in chat
-      if (dto.remark?.trim() && conversation) {
+      // If a remark was provided and status is accepted/rejected/shortlisted, send it as the first message
+      const allowedStatusesForFirstMessage = [
+        'shortlisted',
+        'accepted',
+        'rejected',
+      ];
+      if (
+        allowedStatusesForFirstMessage.includes(dto.status) &&
+        dto.remark?.trim() &&
+        conversation
+      ) {
         try {
           await this.conversationsService.sendMessage(
             conversation.id,

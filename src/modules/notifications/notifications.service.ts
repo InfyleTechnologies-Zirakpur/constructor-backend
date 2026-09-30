@@ -209,7 +209,10 @@ export class NotificationsService {
 
       // Mark notification as pushed if at least one token succeeded
       if (tokens.length > failedTokens.length) {
-        await this.notificationRepo.update({ id: saved.id }, { isPushed: true });
+        await this.notificationRepo.update(
+          { id: saved.id },
+          { isPushed: true },
+        );
         saved.isPushed = true;
       }
     }
@@ -518,14 +521,17 @@ export class NotificationsService {
     text: string,
     conversationId: string,
     recipientId: string,
+    messageId?: string,
   ): Promise<void> {
     const payload = NotificationMessages.newMessage(
       senderName,
       text,
       conversationId,
       recipientId,
+      messageId,
     );
-    await this.dispatchP1(payload, conversationId);
+    const refId = messageId ? `${conversationId}:${messageId}` : conversationId;
+    await this.dispatchP1(payload, refId);
   }
 
   /**
