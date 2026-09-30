@@ -14,10 +14,14 @@ import { User } from '../../users/entities/user.entity.js';
 export class Message {
   @PrimaryGeneratedColumn('uuid') id: string;
 
-  @ManyToOne(() => Conversation) @JoinColumn({ name: 'conversationId' }) conversation: Relation<Conversation>;
+  @ManyToOne(() => Conversation)
+  @JoinColumn({ name: 'conversationId' })
+  conversation: Relation<Conversation>;
   @Column() conversationId: string;
 
-  @ManyToOne(() => User) @JoinColumn({ name: 'senderId' }) sender: Relation<User>;
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'senderId' })
+  sender: Relation<User>;
   @Column() senderId: string;
 
   @Column({ type: 'text' }) text: string;

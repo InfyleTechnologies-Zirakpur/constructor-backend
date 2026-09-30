@@ -5,7 +5,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -44,7 +43,11 @@ export class ConversationsController {
   @Get(':id/messages')
   @Roles('admin', 'company', 'job_seeker')
   async listMessages(@Req() req: any, @Param('id') id: string) {
-    return this.conversationsService.listMessages(id, req.user.id, req.user.role);
+    return this.conversationsService.listMessages(
+      id,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   /**

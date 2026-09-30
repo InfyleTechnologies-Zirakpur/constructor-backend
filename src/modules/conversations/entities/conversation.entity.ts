@@ -18,16 +18,22 @@ import { Message } from './message.entity.js';
 export class Conversation {
   @PrimaryGeneratedColumn('uuid') id: string;
 
-  @ManyToOne(() => User) @JoinColumn({ name: 'companyId' }) company: Relation<User>;
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'companyId' })
+  company: Relation<User>;
   @Column() companyId: string;
 
-  @ManyToOne(() => User) @JoinColumn({ name: 'seekerId' }) seeker: Relation<User>;
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'seekerId' })
+  seeker: Relation<User>;
   @Column() seekerId: string;
 
   @ManyToOne(() => Job) @JoinColumn({ name: 'jobId' }) job: Relation<Job>;
   @Column() jobId: string;
 
-  @ManyToOne(() => Application, { nullable: true }) @JoinColumn({ name: 'applicationId' }) application: Relation<Application>;
+  @ManyToOne(() => Application, { nullable: true })
+  @JoinColumn({ name: 'applicationId' })
+  application: Relation<Application>;
   @Column({ nullable: true }) applicationId: string | null;
 
   @Column({ type: 'text', nullable: true }) lastMessage: string;
@@ -35,7 +41,9 @@ export class Conversation {
   @Column({ default: 0 }) unreadCountCompany: number;
   @Column({ default: 0 }) unreadCountSeeker: number;
 
-  @OneToMany(() => Message, (m) => m.conversation) messages: Relation<Message[]>;
+  @OneToMany(() => Message, (m) => m.conversation) messages: Relation<
+    Message[]
+  >;
 
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;

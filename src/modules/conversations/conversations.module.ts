@@ -11,13 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Conversation,
-      Message,
-      User,
-      Job,
-      Application,
-    ]),
+    TypeOrmModule.forFeature([Conversation, Message, User, Job, Application]),
     NotificationsModule,
   ],
   controllers: [ConversationsController],
