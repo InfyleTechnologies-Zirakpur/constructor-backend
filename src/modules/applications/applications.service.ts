@@ -19,6 +19,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 @Injectable()
 export class ApplicationsService {
   private readonly logger = new Logger(ApplicationsService.name);
+
   constructor(
     @InjectRepository(Application)
     private readonly applicationRepository: Repository<Application>,
@@ -39,6 +40,8 @@ export class ApplicationsService {
   /**
    * Job Seeker applies to a published job.
    * Prevents duplicate applications with a 409 Conflict.
+   * Conversation is NOT created here — it is created when the company
+   * first responds (via updateStatus with a remark).
    */
   async apply(
     jobId: string,
@@ -74,30 +77,14 @@ export class ApplicationsService {
     });
 
     const saved = await this.applicationRepository.save(application);
-    // Create conversation between company and seeker
+
+    // Notify company about the new application
     const jobWithCompany = await this.jobRepository.findOne({
       where: { id: jobId },
       relations: { company: true },
     });
     if (jobWithCompany?.company) {
       try {
-        const conversation = await this.conversationsService.findOrCreate(
-          jobWithCompany.company.userId,
-          userId,
-          jobId,
-          saved.id,
-        );
-        (saved as any).conversationId = conversation?.id;
-        (saved as any).conversation = conversation;
-      } catch (err: any) {
-        this.logger.error(
-          `Failed to create conversation for application ${saved.id}: ${err?.message}`,
-          err?.stack,
-        );
-      }
-
-      try {
-        // P1: Notify company that posted the job
         const seeker = await this.userRepository.findOne({
           where: { id: userId },
           select: { id: true, fullName: true },
@@ -116,7 +103,7 @@ export class ApplicationsService {
         );
       }
     }
-    // Company sees this via GET /applications (role=company) — now includes seeker docs/skills/city
+
     return saved;
   }
 
@@ -165,8 +152,7 @@ export class ApplicationsService {
 
     const [data, total] = await query.getManyAndCount();
 
-    // Sanitize user data — strip hashes, expose seeker/company-needed fields
-    // company needs: skills, preferred location (city), salary, docs, experience/education, verified
+    // Sanitize user data — strip sensitive fields, expose seeker-relevant fields
     const sanitized = data.map((app) => ({
       ...app,
       user: app.user
@@ -177,7 +163,7 @@ export class ApplicationsService {
             phone: app.user.phone,
             role: app.user.role,
             avatarUrl: app.user.avatarUrl,
-            city: (app.user as any).city ?? null, // preferred location
+            city: (app.user as any).city ?? null,
             skills: (app.user as any).skills ?? [],
             salaryExpectation: (app.user as any).salaryExpectation ?? null,
             experience: (app.user as any).experience ?? [],
@@ -225,7 +211,13 @@ export class ApplicationsService {
   }
 
   /**
-   * Company or Admin updates application status (review, shortlist, accept, reject).
+   * Company or Admin updates application status (reviewed, shortlisted, accepted, rejected).
+   *
+   * Flow:
+   * 1. Validate and save new status + optional remark on the application.
+   * 2. Ensure a conversation exists between company and seeker (create if not).
+   * 3. If a remark was provided, send it as a message in that conversation.
+   * 4. Notify the seeker about the status change.
    */
   async updateStatus(
     id: string,
@@ -235,7 +227,7 @@ export class ApplicationsService {
   ): Promise<Application> {
     const application = await this.applicationRepository.findOne({
       where: { id },
-      relations: { job: true },
+      relations: { job: { company: true } },
     });
 
     if (!application) {
@@ -246,16 +238,55 @@ export class ApplicationsService {
       await this.verifyCompanyOwnsJob(application.jobId, userId);
     }
 
+    // Persist status and remark on the application record
     application.status = dto.status;
-
-    if (dto.rejectionReason !== undefined) {
-      application.rejectionReason = dto.rejectionReason;
+    if (dto.remark !== undefined) {
+      application.companyRemark = dto.remark;
     }
-
     const saved = await this.applicationRepository.save(application);
 
-    // P1: Notify seeker about status update
-    if (application.userId) {
+    // Determine the company user ID: for 'company' role it is userId,
+    // for 'admin' role we derive it from the job's company relation.
+    const companyUserId =
+      role === 'company' ? userId : (application.job?.company?.userId ?? null);
+
+    if (companyUserId && application.userId) {
+      // Ensure a conversation exists (idempotent — no duplicates created)
+      let conversation = await this.getOrCreateConversation(
+        companyUserId,
+        application.userId,
+        application.jobId,
+        application.id,
+      );
+
+      // If a remark was provided and status is accepted/rejected/shortlisted, send it as the first message
+      const allowedStatusesForFirstMessage = [
+        'shortlisted',
+        'accepted',
+        'rejected',
+      ];
+      if (
+        allowedStatusesForFirstMessage.includes(dto.status) &&
+        dto.remark?.trim() &&
+        conversation
+      ) {
+        try {
+          await this.conversationsService.sendMessage(
+            conversation.id,
+            companyUserId,
+            dto.remark.trim(),
+          );
+        } catch (err: any) {
+          this.logger.error(
+            `Failed to send remark message for application ${saved.id}: ${err?.message}`,
+            err?.stack,
+          );
+        }
+      }
+    }
+
+    // Notify the seeker about the status update
+    try {
       await this.notificationsService.notifyApplicationStatus(
         application.job?.title || 'the position',
         dto.status,
@@ -263,22 +294,11 @@ export class ApplicationsService {
         application.jobId,
         application.userId,
       );
-    }
-
-    // Create conversation when shortlisted/accepted — triggers interview invite
-    if (dto.status === 'shortlisted' || dto.status === 'accepted') {
-      const job = await this.jobRepository.findOne({
-        where: { id: application.jobId },
-        relations: { company: true },
-      });
-      if (job?.company) {
-        await this.conversationsService.findOrCreate(
-          job.company.userId,
-          application.userId,
-          application.jobId,
-          application.id,
-        );
-      }
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to notify seeker for application status update ${saved.id}: ${err?.message}`,
+        err?.stack,
+      );
     }
 
     return saved;
@@ -286,6 +306,7 @@ export class ApplicationsService {
 
   /**
    * Bulk shortlist: Company/Admin can shortlist multiple applications at once.
+   * Does not send remarks or create conversations — use updateStatus for that.
    */
   async bulkShortlist(
     applicationIds: string[],
@@ -367,6 +388,32 @@ export class ApplicationsService {
       throw new ForbiddenException(
         'You do not have access to this application',
       );
+    }
+  }
+
+  /**
+   * Helper: safely find or create a conversation, logging errors without throwing.
+   * Returns null if the conversation could not be established.
+   */
+  private async getOrCreateConversation(
+    companyUserId: string,
+    seekerId: string,
+    jobId: string,
+    applicationId: string,
+  ) {
+    try {
+      return await this.conversationsService.findOrCreate(
+        companyUserId,
+        seekerId,
+        jobId,
+        applicationId,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to find/create conversation [company=${companyUserId}, seeker=${seekerId}, job=${jobId}]: ${err?.message}`,
+        err?.stack,
+      );
+      return null;
     }
   }
 }

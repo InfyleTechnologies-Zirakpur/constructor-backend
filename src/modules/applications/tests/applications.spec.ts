@@ -5,6 +5,9 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Application } from '../entities/application.entity.js';
 import { Job } from '../../jobs/entities/job.entity.js';
 import { Company } from '../../companies/entities/company.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { ConversationsService } from '../../conversations/conversations.service.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import { Repository } from 'typeorm';
 import {
   ConflictException,
@@ -17,13 +20,15 @@ describe('ApplicationsService', () => {
   let applicationRepo: Repository<Application>;
   let jobRepo: Repository<Job>;
   let companyRepo: Repository<Company>;
+  let _conversationsService: ConversationsService;
 
   const mockJob = {
     id: 'job-1',
     title: 'Site Electrician',
     status: 'published',
     companyId: 'company-1',
-  } as Job;
+    company: { id: 'company-1', userId: 'company-user-1' },
+  } as unknown as Job;
 
   const mockApplication = {
     id: 'app-1',
@@ -39,11 +44,30 @@ describe('ApplicationsService', () => {
       phone: '9876543210',
       role: 'job_seeker',
       avatarUrl: null,
-      passwordHash: 'hashed',
     },
   } as unknown as Application;
 
+  const mockConversation = {
+    id: 'conv-1',
+    companyId: 'company-user-1',
+    seekerId: 'user-seeker',
+    jobId: 'job-1',
+    applicationId: 'app-1',
+  };
+
+  const mockConversationsService = {
+    findOrCreate: vi.fn().mockResolvedValue(mockConversation),
+    sendMessage: vi.fn().mockResolvedValue({ id: 'msg-1', text: 'test' }),
+  };
+
+  const mockNotificationsService = {
+    notifySeekerApplied: vi.fn().mockResolvedValue(undefined),
+    notifyApplicationStatus: vi.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
+    vi.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ApplicationsService,
@@ -69,6 +93,20 @@ describe('ApplicationsService', () => {
             findOne: vi.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: vi.fn(),
+          },
+        },
+        {
+          provide: ConversationsService,
+          useValue: mockConversationsService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
       ],
     }).compile();
 
@@ -78,6 +116,8 @@ describe('ApplicationsService', () => {
     );
     jobRepo = module.get<Repository<Job>>(getRepositoryToken(Job));
     companyRepo = module.get<Repository<Company>>(getRepositoryToken(Company));
+    _conversationsService =
+      module.get<ConversationsService>(ConversationsService);
   });
 
   it('should be defined', () => {
@@ -106,6 +146,17 @@ describe('ApplicationsService', () => {
           coverNote: 'I am interested',
         }),
       );
+    });
+
+    it('should NOT create a conversation on apply', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValue(mockJob);
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue(null);
+      vi.spyOn(applicationRepo, 'create').mockReturnValue(mockApplication);
+      vi.spyOn(applicationRepo, 'save').mockResolvedValue(mockApplication);
+
+      await service.apply('job-1', 'user-seeker', { coverNote: 'Hi' });
+
+      expect(mockConversationsService.findOrCreate).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if job does not exist', async () => {
@@ -180,7 +231,10 @@ describe('ApplicationsService', () => {
   describe('updateStatus', () => {
     it('should update status for admin', async () => {
       const updated = { ...mockApplication, status: 'shortlisted' };
-      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue(mockApplication);
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue({
+        ...mockApplication,
+        job: mockJob,
+      } as unknown as Application);
       vi.spyOn(applicationRepo, 'save').mockResolvedValue(
         updated as unknown as Application,
       );
@@ -202,7 +256,10 @@ describe('ApplicationsService', () => {
     });
 
     it('should enforce company ownership when company updates status', async () => {
-      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue(mockApplication);
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue({
+        ...mockApplication,
+        job: mockJob,
+      } as unknown as Application);
       vi.spyOn(jobRepo, 'findOne').mockResolvedValue(mockJob);
       vi.spyOn(companyRepo, 'findOne').mockResolvedValue(null);
 
@@ -211,6 +268,82 @@ describe('ApplicationsService', () => {
           status: 'shortlisted',
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should create a conversation when status is updated', async () => {
+      const mockCompany = { id: 'company-1', userId: 'company-user-1' };
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue({
+        ...mockApplication,
+        job: mockJob,
+      } as unknown as Application);
+      vi.spyOn(applicationRepo, 'save').mockResolvedValue({
+        ...mockApplication,
+        status: 'shortlisted',
+      } as unknown as Application);
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValue(mockJob);
+      vi.spyOn(companyRepo, 'findOne').mockResolvedValue(mockCompany as any);
+
+      await service.updateStatus('app-1', 'company-user-1', 'company', {
+        status: 'shortlisted',
+      });
+
+      expect(mockConversationsService.findOrCreate).toHaveBeenCalledWith(
+        'company-user-1',
+        'user-seeker',
+        'job-1',
+        'app-1',
+      );
+    });
+
+    it('should send remark as message when remark is provided', async () => {
+      const mockCompany = { id: 'company-1', userId: 'company-user-1' };
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue({
+        ...mockApplication,
+        job: mockJob,
+      } as unknown as Application);
+      vi.spyOn(applicationRepo, 'save').mockResolvedValue({
+        ...mockApplication,
+        status: 'shortlisted',
+        companyRemark: 'Great profile!',
+      } as unknown as Application);
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValue(mockJob);
+      vi.spyOn(companyRepo, 'findOne').mockResolvedValue(mockCompany as any);
+
+      await service.updateStatus('app-1', 'company-user-1', 'company', {
+        status: 'shortlisted',
+        remark: 'Great profile!',
+      });
+
+      expect(mockConversationsService.findOrCreate).toHaveBeenCalled();
+      expect(mockConversationsService.sendMessage).toHaveBeenCalledWith(
+        'conv-1',
+        'company-user-1',
+        'Great profile!',
+      );
+    });
+
+    it('should store remark on application without sending message if remark is empty string', async () => {
+      const mockCompany = { id: 'company-1', userId: 'company-user-1' };
+      vi.spyOn(applicationRepo, 'findOne').mockResolvedValue({
+        ...mockApplication,
+        job: mockJob,
+      } as unknown as Application);
+      vi.spyOn(applicationRepo, 'save').mockResolvedValue({
+        ...mockApplication,
+        status: 'reviewed',
+      } as unknown as Application);
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValue(mockJob);
+      vi.spyOn(companyRepo, 'findOne').mockResolvedValue(mockCompany as any);
+
+      await service.updateStatus('app-1', 'company-user-1', 'company', {
+        status: 'reviewed',
+        remark: '   ',
+      });
+
+      // findOrCreate is still called (conversation is always ensured)
+      expect(mockConversationsService.findOrCreate).toHaveBeenCalled();
+      // sendMessage should NOT be called for whitespace-only remark
+      expect(mockConversationsService.sendMessage).not.toHaveBeenCalled();
     });
   });
 

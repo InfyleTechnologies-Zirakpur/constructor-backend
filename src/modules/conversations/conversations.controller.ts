@@ -5,7 +5,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -24,7 +23,7 @@ export class ConversationsController {
    * GET /conversations — List conversations for current user.
    */
   @Get()
-  @Roles('admin', 'company', 'job_seeker')
+  @Roles('admin', 'company', 'job_seeker', 'contractor', 'site_engineer')
   async list(@Req() req: any) {
     return this.conversationsService.listForUser(req.user.id, req.user.role);
   }
@@ -33,7 +32,7 @@ export class ConversationsController {
    * GET /conversations/:id — Get single conversation.
    */
   @Get(':id')
-  @Roles('admin', 'company', 'job_seeker')
+  @Roles('admin', 'company', 'job_seeker', 'contractor', 'site_engineer')
   async getOne(@Req() req: any, @Param('id') id: string) {
     return this.conversationsService.getById(id, req.user.id, req.user.role);
   }
@@ -42,16 +41,20 @@ export class ConversationsController {
    * GET /conversations/:id/messages — List messages in a conversation.
    */
   @Get(':id/messages')
-  @Roles('admin', 'company', 'job_seeker')
+  @Roles('admin', 'company', 'job_seeker', 'contractor', 'site_engineer')
   async listMessages(@Req() req: any, @Param('id') id: string) {
-    return this.conversationsService.listMessages(id, req.user.id, req.user.role);
+    return this.conversationsService.listMessages(
+      id,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   /**
    * POST /conversations/:id/messages — Send a message.
    */
   @Post(':id/messages')
-  @Roles('admin', 'company', 'job_seeker')
+  @Roles('admin', 'company', 'job_seeker', 'contractor', 'site_engineer')
   async sendMessage(
     @Req() req: any,
     @Param('id') id: string,
@@ -64,7 +67,7 @@ export class ConversationsController {
    * PATCH /conversations/:id/read — Mark messages as read.
    */
   @Patch(':id/read')
-  @Roles('admin', 'company', 'job_seeker')
+  @Roles('admin', 'company', 'job_seeker', 'contractor', 'site_engineer')
   async markRead(@Req() req: any, @Param('id') id: string) {
     return this.conversationsService.markRead(id, req.user.id, req.user.role);
   }

@@ -51,8 +51,12 @@ export class Application {
   @Column({ type: 'varchar', length: 100, nullable: true })
   availability?: string;
 
+  /**
+   * Company's remark explaining the decision — applies to all statuses.
+   * Sent as the first/updated message in the conversation.
+   */
   @Column({ type: 'text', nullable: true })
-  rejectionReason?: string;
+  companyRemark?: string;
 
   @CreateDateColumn({ type: 'timestamp' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamp' }) updatedAt: Date;

@@ -114,8 +114,12 @@ describe('NotificationsService & Processors', () => {
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-    notificationProcessor = module.get<NotificationProcessor>(NotificationProcessor);
-    fanoutProcessor = module.get<NotificationFanoutProcessor>(NotificationFanoutProcessor);
+    notificationProcessor = module.get<NotificationProcessor>(
+      NotificationProcessor,
+    );
+    fanoutProcessor = module.get<NotificationFanoutProcessor>(
+      NotificationFanoutProcessor,
+    );
     notificationRepo = module.get(getRepositoryToken(Notification));
     deviceTokenRepo = module.get(getRepositoryToken(DeviceToken));
     userRepo = module.get(getRepositoryToken(User));
@@ -352,7 +356,12 @@ describe('NotificationsService & Processors', () => {
     it('should trigger P1 notifyNewMessage', async () => {
       const spy = vi.spyOn(service, 'dispatchP1').mockResolvedValue();
 
-      await service.notifyNewMessage('Alice', 'Interview Monday', 'conv-1', 'seeker-1');
+      await service.notifyNewMessage(
+        'Alice',
+        'Interview Monday',
+        'conv-1',
+        'seeker-1',
+      );
 
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -366,7 +375,10 @@ describe('NotificationsService & Processors', () => {
     it('should broadcast P3 admin announcement to all users when userIds omitted', async () => {
       const spy = vi.spyOn(service, 'dispatchFanoutP3').mockResolvedValue();
 
-      const count = await service.notifyAdminAnnouncement('System Update', 'Scheduled maintenance tonight');
+      const count = await service.notifyAdminAnnouncement(
+        'System Update',
+        'Scheduled maintenance tonight',
+      );
 
       expect(count).toBe(2);
       expect(spy).toHaveBeenCalledWith(
@@ -384,7 +396,11 @@ describe('NotificationsService & Processors', () => {
 
   describe('listAdminNotifications', () => {
     it('should list all platform notifications with user relation', async () => {
-      const result = await service.listAdminNotifications(1, 20, 'admin_announcement');
+      const result = await service.listAdminNotifications(
+        1,
+        20,
+        'admin_announcement',
+      );
 
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);

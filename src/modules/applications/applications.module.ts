@@ -20,4 +20,3 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}
-

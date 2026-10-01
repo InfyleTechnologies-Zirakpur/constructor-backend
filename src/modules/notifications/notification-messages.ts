@@ -48,8 +48,7 @@ export const NotificationMessages = {
     jobId: string,
     recipientId: string,
   ): NotificationPayload {
-    const formattedStatus =
-      status.charAt(0).toUpperCase() + status.slice(1);
+    const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1);
     return {
       type: 'application_update',
       title: `Application ${formattedStatus}`,
@@ -72,9 +71,9 @@ export const NotificationMessages = {
     text: string,
     conversationId: string,
     recipientId: string,
+    messageId?: string,
   ): NotificationPayload {
-    const preview =
-      text.length > 80 ? text.substring(0, 77) + '...' : text;
+    const preview = text.length > 80 ? text.substring(0, 77) + '...' : text;
     const title = senderName?.trim()
       ? `New message from ${senderName}`
       : 'New message received';
@@ -85,6 +84,7 @@ export const NotificationMessages = {
       data: {
         conversationId,
         recipientId,
+        ...(messageId ? { messageId } : {}),
       },
       recipientId,
     };
