@@ -4,12 +4,15 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Notification } from '../entities/notification.entity.js';
 import { DeviceToken } from '../entities/device-token.entity.js';
 import { User } from '../../users/entities/user.entity.js';
+import { Contractor } from '../../contractors/entities/contractor.entity.js';
+import { SiteEngineerAssignment } from '../../site-engineers/entities/site-engineer-assignment.entity.js';
 import { FirebaseProvider } from '../firebase.provider.js';
 import {
   NotificationProcessor,
   NotificationFanoutProcessor,
 } from '../notification.processor.js';
 import { NotificationMessages } from '../notification-messages.js';
+import { ForbiddenException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 describe('NotificationsService & Processors', () => {
@@ -108,6 +111,24 @@ describe('NotificationsService & Processors', () => {
             sendToDevice: vi.fn().mockResolvedValue(true),
             sendToDevices: vi.fn().mockResolvedValue([]),
             isInitialized: vi.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: getRepositoryToken(Contractor),
+          useValue: {
+            findOne: vi.fn().mockResolvedValue({ id: 'contractor-1', userId: 'contractor-user-1' }),
+          },
+        },
+        {
+          provide: getRepositoryToken(SiteEngineerAssignment),
+          useValue: {
+            createQueryBuilder: vi.fn(() => ({
+              innerJoin: vi.fn().mockReturnThis(),
+              where: vi.fn().mockReturnThis(),
+              andWhere: vi.fn().mockReturnThis(),
+              select: vi.fn().mockReturnThis(),
+              getRawMany: vi.fn().mockResolvedValue([{ userId: 'eng-1' }, { userId: 'eng-2' }]),
+            })),
           },
         },
       ],
@@ -405,6 +426,71 @@ describe('NotificationsService & Processors', () => {
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
       expect(result.items[0].user.fullName).toBe('John Doe');
+    });
+  });
+
+  // ─── CONTRACTOR NOTIFICATIONS ─────────────────────
+
+  describe('sendNotification (Contractor flow)', () => {
+    it('should allow contractor to notify assigned site engineers', async () => {
+      const spy = vi.spyOn(service, 'dispatchFanoutP3').mockResolvedValue();
+
+      const result = await service.sendNotification(
+        {
+          title: 'Site Update',
+          body: 'Pouring concrete tomorrow',
+          userIds: ['eng-1'],
+        },
+        'contractor-user-1',
+        'contractor',
+      );
+
+      expect(result.count).toBe(1);
+      expect(spy).toHaveBeenCalledWith(
+        ['eng-1'],
+        'project_update',
+        'Site Update',
+        'Pouring concrete tomorrow',
+        undefined,
+        { event: 'project_update' },
+      );
+    });
+
+    it('should throw ForbiddenException if contractor targets an unassigned engineer', async () => {
+      await expect(
+        service.sendNotification(
+          {
+            title: 'Site Update',
+            body: 'Notice',
+            userIds: ['unassigned-eng-99'],
+          },
+          'contractor-user-1',
+          'contractor',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should default to all assigned engineers if userIds omitted for contractor', async () => {
+      const spy = vi.spyOn(service, 'dispatchFanoutP3').mockResolvedValue();
+
+      const result = await service.sendNotification(
+        {
+          title: 'All Engineers Update',
+          body: 'Notice to all',
+        },
+        'contractor-user-1',
+        'contractor',
+      );
+
+      expect(result.count).toBe(2);
+      expect(spy).toHaveBeenCalledWith(
+        ['eng-1', 'eng-2'],
+        'project_update',
+        'All Engineers Update',
+        'Notice to all',
+        undefined,
+        { event: 'project_update' },
+      );
     });
   });
 });

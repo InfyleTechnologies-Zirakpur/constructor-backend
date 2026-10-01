@@ -86,14 +86,19 @@ export class NotificationsController {
   }
 
   /**
-   * POST /notifications/send — Send notification or broadcast announcement (admin).
+   * POST /notifications/send — Send notification (admin or contractor).
+   * Contractors can notify only site engineers assigned to their sites.
    * Rate limited to 12 requests per minute.
    */
   @Post('send')
-  @Roles('admin')
+  @Roles('admin', 'contractor')
   @Throttle({ default: { ttl: 60000, limit: 12 } })
-  async sendNotification(@Body() dto: AdminSendNotificationDto) {
-    const res = await this.notificationsService.sendAdminNotification(dto);
+  async sendNotification(@Req() req: any, @Body() dto: AdminSendNotificationDto) {
+    const res = await this.notificationsService.sendNotification(
+      dto,
+      req.user.id,
+      req.user.role,
+    );
     return {
       success: true,
       message: `Notification dispatched to ${res.count} user(s)`,

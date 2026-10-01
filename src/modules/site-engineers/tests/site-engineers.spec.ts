@@ -99,6 +99,20 @@ describe('SiteEngineersService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('should throw BadRequestException if phone exists', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce(mockUser); // phone check
+      await expect(
+        service.createSiteEngineer({
+          email: 'test@example.com',
+          phone: '+919999999999',
+          fullName: 'Test Eng',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('should create and sanitize a new site engineer', async () => {
       userRepo.findOne.mockResolvedValueOnce(null);
       const result = await service.createSiteEngineer({
@@ -183,6 +197,23 @@ describe('SiteEngineersService', () => {
       await expect(
         service.getProfile('user-1', 'contractor-user-1', 'contractor'),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getStats', () => {
+    it('should return assigned sites for site_engineer', async () => {
+      assignmentRepo.find.mockResolvedValueOnce([
+        { site: { id: 'site-1', name: 'Site 1', location: 'Loc 1' } },
+      ]);
+      const result = await service.getStats('user-1', 'site_engineer');
+      expect(result.assignedSites).toBe(1);
+      expect(result.sites[0].name).toBe('Site 1');
+    });
+
+    it('should return assigned engineer and active site counts for contractor', async () => {
+      const result = await service.getStats('contractor-user-1', 'contractor');
+      expect(result).toHaveProperty('assignedEngineers');
+      expect(result).toHaveProperty('activeSites');
     });
   });
 });

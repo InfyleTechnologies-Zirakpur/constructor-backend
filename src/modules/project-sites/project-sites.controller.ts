@@ -51,6 +51,7 @@ export class ProjectSitesController {
       projectId,
       req.user.id,
       dto,
+      req.user.role,
     );
     return { message: 'Site created successfully', data: site };
   }
@@ -61,10 +62,10 @@ export class ProjectSitesController {
   @Get('projects/:projectId/sites')
   @Roles('contractor', 'admin')
   async findByProject(@Req() req: any, @Param('projectId') projectId: string) {
-    const isAdmin = req.user.role === 'admin';
     const data = await this.projectSitesService.findByProject(
       projectId,
-      isAdmin ? undefined : req.user.id,
+      req.user.id,
+      req.user.role,
     );
     return { data };
   }
@@ -75,10 +76,10 @@ export class ProjectSitesController {
   @Get('sites/:id')
   @Roles('contractor', 'admin', 'site_engineer')
   async findOne(@Req() req: any, @Param('id') id: string) {
-    const isAdmin = req.user.role === 'admin';
     const data = await this.projectSitesService.findOne(
       id,
-      isAdmin ? undefined : req.user.id,
+      req.user.id,
+      req.user.role,
     );
     return { data };
   }
@@ -93,7 +94,12 @@ export class ProjectSitesController {
     @Param('id') id: string,
     @Body() dto: UpdateProjectSiteDto,
   ) {
-    const site = await this.projectSitesService.update(id, req.user.id, dto);
+    const site = await this.projectSitesService.update(
+      id,
+      req.user.id,
+      dto,
+      req.user.role,
+    );
     return { message: 'Site updated successfully', data: site };
   }
 
@@ -111,6 +117,7 @@ export class ProjectSitesController {
       siteId,
       req.user.id,
       dto,
+      req.user.role,
     );
     return { message: 'Engineer assigned successfully', data: assignment };
   }
@@ -129,6 +136,7 @@ export class ProjectSitesController {
       siteId,
       assignmentId,
       req.user.id,
+      req.user.role,
     );
     return { message: 'Engineer removed from site' };
   }

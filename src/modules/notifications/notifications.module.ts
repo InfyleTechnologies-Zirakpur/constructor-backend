@@ -8,6 +8,8 @@ import { FirebaseProvider } from './firebase.provider.js';
 import { Notification } from './entities/notification.entity.js';
 import { DeviceToken } from './entities/device-token.entity.js';
 import { User } from '../users/entities/user.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
 import {
   NOTIFICATION_QUEUE,
   NOTIFICATION_FANOUT_QUEUE,
@@ -25,7 +27,13 @@ const queueEnabled = process.env.QUEUE_ENABLED !== 'false';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([Notification, DeviceToken, User]),
+    TypeOrmModule.forFeature([
+      Notification,
+      DeviceToken,
+      User,
+      Contractor,
+      SiteEngineerAssignment,
+    ]),
     ...(queueEnabled
       ? [
           BullModule.registerQueue(

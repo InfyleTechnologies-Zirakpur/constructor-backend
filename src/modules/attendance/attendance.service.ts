@@ -45,8 +45,13 @@ export class AttendanceService {
   async checkIn(
     userId: string,
     dto: CheckInDto,
+    role?: string,
   ): Promise<Record<string, unknown>> {
     const today = this.todayString();
+
+    if (dto.siteId && role === 'site_engineer') {
+      await this.verifySiteAccess(dto.siteId, userId);
+    }
 
     // Prevent duplicate check-in for the same day
     const existing = await this.attendanceRepo.findOne({
@@ -132,16 +137,14 @@ export class AttendanceService {
       if (!contractor) return { items: [], summary: { days: 0, overtime: '0h' } };
 
       // Get siteIds from projects owned by this contractor
-      const ownedSiteIds = await this.assignmentRepo
-        .createQueryBuilder('sea')
-        .innerJoin('project_sites', 'ps', 'ps.id = sea.siteId')
-        .innerJoin('projects', 'p', 'p.id = ps.projectId')
-        .select('sea.siteId', 'siteId')
+      const ownedSites = await this.projectRepo
+        .createQueryBuilder('p')
+        .innerJoin('project_sites', 'ps', 'ps.projectId = p.id')
+        .select('ps.id', 'siteId')
         .where('p.contractorId = :contractorId', { contractorId: contractor.id })
-        .andWhere('sea.isActive = true')
         .getRawMany();
 
-      const siteIds = ownedSiteIds.map((r: any) => r.siteId).filter(Boolean);
+      const siteIds = ownedSites.map((r: any) => r.siteId).filter(Boolean);
       if (siteIds.length > 0) {
         query.where('att.siteId IN (:...siteIds)', { siteIds });
       } else {
@@ -259,6 +262,8 @@ export class AttendanceService {
   ): Promise<LabourRecord> {
     if (role === 'site_engineer') {
       await this.verifySiteAccess(dto.siteId, userId);
+    } else if (role === 'contractor') {
+      await this.verifyContractorSiteAccess(dto.siteId, userId);
     }
 
     // Server-side cost calculation

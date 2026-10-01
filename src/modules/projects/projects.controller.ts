@@ -33,7 +33,11 @@ export class ProjectsController {
   @Roles('contractor', 'admin')
   async create(@Req() req: any, @Body() dto: CreateProjectDto) {
     this.authz.assertCan('createProject', req.user.role);
-    const project = await this.projectsService.create(req.user.id, dto);
+    const project = await this.projectsService.create(
+      req.user.id,
+      dto,
+      req.user.role,
+    );
     return { message: 'Project created successfully', data: project };
   }
 
@@ -94,7 +98,12 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
   ) {
-    const project = await this.projectsService.update(id, req.user.id, dto);
+    const isAdmin = req.user.role === 'admin';
+    const project = await this.projectsService.update(
+      id,
+      isAdmin ? undefined : req.user.id,
+      dto,
+    );
     return { message: 'Project updated successfully', data: project };
   }
 

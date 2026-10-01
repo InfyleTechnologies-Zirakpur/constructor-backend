@@ -85,8 +85,12 @@ export class ReportsController {
    */
   @Get('reports/:id')
   @Roles('admin', 'contractor', 'site_engineer')
-  async getReport(@Param('id') id: string) {
-    const report = await this.reportsService.getReportById(id);
+  async getReport(@Req() req: any, @Param('id') id: string) {
+    const report = await this.reportsService.getReportById(
+      id,
+      req.user.id,
+      req.user.role,
+    );
     return { success: true, data: report };
   }
 
@@ -115,11 +119,14 @@ export class ReportsController {
   @Get('projects/:projectId/reports')
   @Roles('admin', 'contractor')
   async listProjectReports(
+    @Req() req: any,
     @Param('projectId') projectId: string,
     @Query('status') status?: string,
   ) {
     const result = await this.reportsService.listProjectReports(
       projectId,
+      req.user.id,
+      req.user.role,
       status,
     );
     return { success: true, data: result };
