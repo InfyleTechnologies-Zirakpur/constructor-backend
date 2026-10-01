@@ -17,25 +17,35 @@ import {
   NotificationFanoutProcessor,
 } from './notification.processor.js';
 
+// Same QUEUE_ENABLED flag as app.module.ts: without Redis there is no
+// Bull connection, so queues/workers are skipped. NotificationsService
+// injects queues as @Optional() and falls back to direct sending.
+const queueEnabled = process.env.QUEUE_ENABLED !== 'false';
+
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([Notification, DeviceToken, User]),
-    BullModule.registerQueue(
-      {
-        name: NOTIFICATION_QUEUE,
-      },
-      {
-        name: NOTIFICATION_FANOUT_QUEUE,
-      },
-    ),
+    ...(queueEnabled
+      ? [
+          BullModule.registerQueue(
+            {
+              name: NOTIFICATION_QUEUE,
+            },
+            {
+              name: NOTIFICATION_FANOUT_QUEUE,
+            },
+          ),
+        ]
+      : []),
   ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
     FirebaseProvider,
-    NotificationProcessor,
-    NotificationFanoutProcessor,
+    ...(queueEnabled
+      ? [NotificationProcessor, NotificationFanoutProcessor]
+      : []),
   ],
   exports: [NotificationsService],
 })

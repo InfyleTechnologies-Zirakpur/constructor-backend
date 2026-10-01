@@ -76,6 +76,7 @@ export class AuthService {
    * Shape: { id, name, phone, city, skills, profilePhotoUrl, documents, salaryExpectation }
    */
   private buildWorkerProfile(user: User) {
+    const complete = this.isWorkerProfileComplete(user);
     return {
       id: user.id,
       employeeId: (user as any).employeeId ?? null,
@@ -91,7 +92,52 @@ export class AuthService {
       documents: (user as any).documents ?? [],
       salaryExpectation: (user as any).salaryExpectation ?? '',
       policy: (user as any).policy ?? null,
+      // Explicit flags so Flutter can route correctly without guessing.
+      isNewUser: !complete,
+      isProfileComplete: complete,
     };
+  }
+
+  /**
+   * Single source of truth for "has this phone number finished
+   * Create Profile?".
+   *
+   * requestOtp auto-creates every unknown phone with
+   * fullName='Job Seeker' + empty city/skills — that placeholder must
+   * NOT count as a complete profile, otherwise a brand-new number
+   * (e.g. 1234567891) lands straight on HomePage.
+   */
+  private isWorkerProfileComplete(user: User): boolean {
+    const rawName = (user.fullName ?? '').trim();
+    const lower = rawName.toLowerCase();
+    const PLACEHOLDERS = new Set([
+      '',
+      'null',
+      'undefined',
+      'job seeker',
+      'jobseeker',
+      'new user',
+      'user',
+    ]);
+    if (PLACEHOLDERS.has(lower)) return false;
+    // Auto-generated synthetic email means profile was never filled.
+    const email = (user.email ?? '').toLowerCase();
+    const isSyntheticEmail =
+      email.endsWith('@buildhire.app') && email.startsWith((user.phone ?? '').toLowerCase());
+    // Real (non-synthetic) registration with a real name → complete,
+    // even if city/skills were skipped.
+    if (!isSyntheticEmail) return true;
+    // Synthetic OTP auto-account: require at least one real profile field
+    // (city / skills / salary) beyond the 'Job Seeker' placeholder.
+    const city = ((user as any).city ?? '').toString().trim();
+    const skills = (user as any).skills as unknown;
+    const salary = ((user as any).salaryExpectation ?? '').toString().trim();
+    const hasCity = city !== '' && city.toLowerCase() !== 'null';
+    const hasSkills = Array.isArray(skills) && skills.length > 0;
+    const hasSalary = salary !== '' && salary.toLowerCase() !== 'null';
+    if (isSyntheticEmail && !hasCity && !hasSkills && !hasSalary) return false;
+    if (!hasCity && !hasSkills && !hasSalary) return false;
+    return true;
   }
 
   // ════════════════════════════════════════════════════
@@ -108,6 +154,12 @@ export class AuthService {
     let user = await this.userRepository.findOne({
       where: { phone: dto.phone },
     });
+
+    // Track whether this phone is brand-new BEFORE auto-register.
+    // Flutter uses this to decide Create-Profile vs Home — but the
+    // authoritative check happens in verifyOtp (profile completeness),
+    // because requestOtp can be called multiple times.
+    const isNewUser = !user;
 
     // Auto-register if user doesn't exist (first-time job seeker)
     if (!user) {
@@ -150,6 +202,8 @@ export class AuthService {
     return {
       otpSent: true,
       message: 'OTP sent successfully — use Firebase Phone Auth in app, dev OTP in log',
+      isNewUser,
+      phone: dto.phone,
     };
   }
 
@@ -212,10 +266,16 @@ export class AuthService {
         await this.userRepository.save(user as User);
 
         const tokens = await this.generateTokens(user as User);
+        const worker = this.buildWorkerProfile(user!);
+        const isProfileComplete = this.isWorkerProfileComplete(user!);
         return {
           accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           expiresIn: 604800,
-          worker: this.buildWorkerProfile(user!),
+          worker,
+          // Top-level flags — Flutter checks these FIRST.
+          isNewUser: !isProfileComplete,
+          isProfileComplete,
         };
       } catch (e: any) {
         // If Firebase verify fails, fall through to custom OTP check
@@ -256,10 +316,19 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
+    const worker = this.buildWorkerProfile(user);
+    const isProfileComplete = this.isWorkerProfileComplete(user);
     return {
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       expiresIn: 604800, // 7 days in seconds
-      worker: this.buildWorkerProfile(user),
+      worker,
+      // Top-level flags — Flutter checks these FIRST.
+      // New number (e.g. 1234567891, auto-created with 'Job Seeker'
+      // placeholder) → isNewUser=true → Create Profile screen.
+      // Existing number with saved name/city/skills → HomePage.
+      isNewUser: !isProfileComplete,
+      isProfileComplete,
     };
   }
 

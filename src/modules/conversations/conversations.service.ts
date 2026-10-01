@@ -194,7 +194,7 @@ export class ConversationsService {
 
     // Rule 2: Company can only initiate conversation after application is accepted, rejected, or shortlisted
     if (isCompany && companyMessageCount === 0) {
-      let application = conv.application;
+      let application: Application | null = conv.application ?? null;
       if (!application && conv.applicationId) {
         application = await this.appRepo.findOne({
           where: { id: conv.applicationId },
