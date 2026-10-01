@@ -54,6 +54,64 @@ export class WorkerAppService {
     };
   }
 
+  private pullBase() {
+    const pull =
+      process.env.BUNNY_PULL_ZONE ??
+      process.env.BUNNY_CDN_URL ??
+      process.env.BUNNY_CDN_HOSTNAME ??
+      'https://construction-site.b-cdn.net';
+    const base = pull.startsWith('http') ? pull : `https://${pull}`;
+    return base.replace(/\/$/, '');
+  }
+
+  private isBunnyConfigured() {
+    const z = process.env.BUNNY_STORAGE_ZONE;
+    const p = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+    return !!z && !!p && p !== 'your-bunny-storage-password' && p !== 'your-bunny-storage-api-key';
+  }
+
+  /** Seeker doc kinds sent by Flutter as `type`. */
+  private normalizeDocSubtype(raw: unknown): string | null {
+    const t = (raw ?? '').toString().trim().toLowerCase();
+    if (t === 'aadhaar') return 'aadhaar';
+    if (t === 'experience' || t === 'experience_certificate' || t === 'experience-certificate') return 'experience';
+    if (t === 'skill' || t === 'skill_certificate' || t === 'skill-certificate') return 'skill';
+    return null;
+  }
+
+  private docTypeOf(objectKey: string, fallbackEntityType: string): string {
+    const m = (objectKey ?? '').match(/worker_doc\/(aadhaar|experience|skill)\//);
+    if (m) return m[1];
+    if (fallbackEntityType !== 'worker_doc') return fallbackEntityType;
+    return 'worker_doc';
+  }
+
+  /**
+   * PUT bytes to Bunny. Throws when Bunny is configured and the PUT
+   * fails — never return a fake success URL in that case.
+   * Returns null only when Bunny is NOT configured (local dev).
+   */
+  private async putToBunny(objectKey: string, file: any): Promise<string | null> {
+    const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
+    const cfgPass =
+      process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+    const cfgHost =
+      process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
+    if (!this.isBunnyConfigured() || !cfgPass) return null;
+    const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
+    const res: any = await (global as any).fetch(url, {
+      method: 'PUT',
+      headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype },
+      body: file.buffer,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      this.logger.error(`Bunny PUT failed (${res.status}) for ${objectKey}: ${body}`);
+      throw new BadRequestException(`Media upload failed (Bunny ${res.status}). Please retry.`);
+    }
+    return `${this.pullBase()}/${objectKey}`;
+  }
+
   // ════════════════════════════════════════════════════
   //  PROFILE CRUD
   // ════════════════════════════════════════════════════
@@ -62,18 +120,23 @@ export class WorkerAppService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Exclude avatar docs — those are shown via profilePhotoUrl, not as
+    // identity documents (aadhaar / experience / skill).
     const documents = await this.documentRepo.find({
       where: { ownerId: userId },
       order: { createdAt: 'DESC' },
     });
 
     const profile = this.buildWorkerProfile(user);
-    profile.documents = documents.map((doc) => ({
-      id: doc.id,
-      type: doc.entityType,
-      name: doc.originalFilename,
-      verificationStatus: 'pending',
-    }));
+    profile.documents = documents
+      .filter((doc) => doc.entityType !== 'user_avatar')
+      .map((doc) => ({
+        id: doc.id,
+        type: this.docTypeOf(doc.objectKey, doc.entityType),
+        name: doc.originalFilename,
+        url: `${this.pullBase()}/${doc.objectKey}`,
+        verificationStatus: 'pending',
+      }));
 
     return profile;
   }
@@ -103,7 +166,7 @@ export class WorkerAppService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Use global Documents system (Bunny → construction-site.b-cdn.net) for meaningful folders
+    // Use global Documents system (Bunny → pull zone) for meaningful folders
     const ext = file.originalname.split('.').pop() || 'jpg';
     const sanitized = file.originalname
       .replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -111,49 +174,14 @@ export class WorkerAppService {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2,'0');
     const objectKey = `documents/user_avatar/${yyyy}/${mm}/${userId}/${dd}_${sanitized}_${Date.now().toString().slice(-6)}.${ext}`;
-    // Upload via Bunny (same as documents.service)
-    try {
-      const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
-      const cfgPass =
-        process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
-      const cfgHost =
-        process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
-      const cfgPull =
-        process.env.BUNNY_CDN_URL ??
-        process.env.BUNNY_CDN_HOSTNAME ??
-        'https://construction-site.b-cdn.net';
-      if (cfgZone && cfgPass) {
-        const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
-        const res: any = await (global as any).fetch(url, {
-          method: 'PUT',
-          headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype },
-          body: file.buffer,
-        });
-        if (!res.ok) throw new Error(await res.text());
-        const pull = cfgPull.startsWith('http')
-          ? cfgPull
-          : `https://${cfgPull}`;
-        const profilePhotoUrl = `${pull.replace(/\/$/, '')}/${objectKey}`;
-        // also save as Document for File manager insights
-        const doc = this.documentRepo.create({
-          entityType: 'user_avatar',
-          entityId: userId,
-          objectKey,
-          originalFilename: file.originalname,
-          mimeType: file.mimetype,
-          size: file.size,
-          ownerId: userId,
-        } as any);
-        await this.documentRepo.save(doc);
-        user.avatarUrl = profilePhotoUrl;
-        await this.userRepo.save(user);
-        return { profilePhotoUrl };
-      }
-    } catch {}
-    // Fallback mock (still saves Document for File manager)
-    const profilePhotoUrl = `https://construction-site.b-cdn.net/${objectKey}`;
+    // Upload via Bunny (throws when configured + PUT fails)
+    const bunnyUrl = await this.putToBunny(objectKey, file);
+    const profilePhotoUrl = bunnyUrl ?? `${this.pullBase()}/${objectKey}`;
+    if (!bunnyUrl) {
+      this.logger.warn(`Bunny not configured — avatar ${objectKey} stored as DB row only`);
+    }
     try {
       const doc = this.documentRepo.create({
         entityType: 'user_avatar',
@@ -165,7 +193,9 @@ export class WorkerAppService {
         ownerId: userId,
       } as any);
       await this.documentRepo.save(doc);
-    } catch {}
+    } catch (e: any) {
+      this.logger.warn(`Avatar doc-row save failed: ${e?.message}`);
+    }
     user.avatarUrl = profilePhotoUrl;
     await this.userRepo.save(user);
     return { profilePhotoUrl };
@@ -176,8 +206,22 @@ export class WorkerAppService {
   // ════════════════════════════════════════════════════
 
   async uploadDocument(userId: string, file: any, type: string) {
-    if (!file) throw new BadRequestException('No file provided');
+    if (!file?.buffer && !file?.size) throw new BadRequestException('No file provided');
     if (!type) throw new BadRequestException('Document type is required');
+
+    const subtype = this.normalizeDocSubtype(type);
+    if (!subtype) {
+      throw new BadRequestException(
+        `Unknown document type '${type}'. Allowed: aadhaar, experience, skill`,
+      );
+    }
+    const allowedMime = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (file.mimetype && !allowedMime.includes(file.mimetype)) {
+      throw new BadRequestException(`Invalid mime ${file.mimetype}. Allowed ${allowedMime.join(', ')}`);
+    }
+    if (file.size && file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('File too large, max 10MB');
+    }
 
     const ext = file.originalname.split('.').pop() || 'pdf';
     const base = file.originalname
@@ -187,30 +231,17 @@ export class WorkerAppService {
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
-    const objectKey = `documents/worker_doc/${yyyy}/${mm}/${userId}/${dd}_${base}_${Date.now().toString().slice(-6)}.${ext}`;
+    // Subtype in path → Bunny dashboard groups docs as
+    // documents/worker_doc/aadhaar/... , .../experience/... , .../skill/...
+    const objectKey = `documents/worker_doc/${subtype}/${yyyy}/${mm}/${userId}/${dd}_${base}_${Date.now().toString().slice(-6)}.${ext}`;
 
-    // Upload to Bunny for File manager insights (same as /documents/upload)
-    try {
-      const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
-      const cfgPass =
-        process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
-      const cfgHost =
-        process.env.BUNNY_STORAGE_HOSTNAME ?? 'storage.bunnycdn.com';
-      if (cfgZone && cfgPass) {
-        const url = `https://${cfgHost}/${cfgZone}/${objectKey}`;
-        await (global as any).fetch(url, {
-          method: 'PUT',
-          headers: { AccessKey: cfgPass, 'Content-Type': file.mimetype },
-          body: file.buffer,
-        });
-      }
-    } catch {}
+    // 1. PUT bytes to Bunny FIRST (throws on failure — no phantom rows).
+    const bunnyUrl = await this.putToBunny(objectKey, file);
+    const url = bunnyUrl ?? `${this.pullBase()}/${objectKey}`;
+    if (!bunnyUrl) {
+      this.logger.warn(`Bunny not configured — doc ${objectKey} stored as DB row only`);
+    }
 
-    const pull = (
-      process.env.BUNNY_CDN_URL ??
-      process.env.BUNNY_CDN_HOSTNAME ??
-      'https://construction-site.b-cdn.net'
-    ).replace(/\/$/, '');
     const document = this.documentRepo.create({
       entityType: 'worker_doc',
       entityId: userId,
@@ -225,9 +256,9 @@ export class WorkerAppService {
     const savedDoc: any = Array.isArray(savedAny) ? savedAny[0] : savedAny;
     return {
       id: savedDoc.id,
-      type,
+      type: subtype,
       name: savedDoc.originalFilename,
-      url: `${pull}/${savedDoc.objectKey}`,
+      url,
       verificationStatus: 'pending',
       uploadedAt: savedDoc.createdAt,
     };
@@ -239,15 +270,18 @@ export class WorkerAppService {
       order: { createdAt: 'DESC' },
     });
 
+    const pull = this.pullBase();
     return {
-      items: documents.map((doc) => ({
-        id: doc.id,
-        type: doc.entityType,
-        name: doc.originalFilename,
-        url: `https://cdn.buildhire.app/${doc.objectKey}`,
-        verificationStatus: 'pending',
-        uploadedAt: doc.createdAt,
-      })),
+      items: documents
+        .filter((doc) => doc.entityType !== 'user_avatar')
+        .map((doc) => ({
+          id: doc.id,
+          type: this.docTypeOf(doc.objectKey, doc.entityType),
+          name: doc.originalFilename,
+          url: `${pull}/${doc.objectKey}`,
+          verificationStatus: 'pending',
+          uploadedAt: doc.createdAt,
+        })),
     };
   }
 
