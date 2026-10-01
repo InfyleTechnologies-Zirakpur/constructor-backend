@@ -5,6 +5,7 @@ import { Message } from './entities/message.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { Job } from '../jobs/entities/job.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
+import { Application } from '../applications/entities/application.entity.js';
 import { ConversationsController } from './conversations.controller.js';
 import { ConversationsService } from './conversations.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';

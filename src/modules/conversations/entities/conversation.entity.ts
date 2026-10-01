@@ -33,7 +33,7 @@ export class Conversation {
 
   @ManyToOne(() => Application, { nullable: true })
   @JoinColumn({ name: 'applicationId' })
-  application: Relation<Application>;
+  application: Relation<Application> | null;
   @Column({ nullable: true }) applicationId: string | null;
 
   @Column({ type: 'text', nullable: true }) lastMessage: string;
