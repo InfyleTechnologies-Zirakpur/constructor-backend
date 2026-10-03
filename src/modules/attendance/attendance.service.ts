@@ -79,8 +79,8 @@ export class AttendanceService {
       siteId: dto.siteId || undefined,
       date: today,
       checkInTime: new Date(),
-      checkInLatitude: dto.latitude,
-      checkInLongitude: dto.longitude,
+      checkInLatitude: dto.latitude ?? null,
+      checkInLongitude: dto.longitude ?? null,
       status: 'present',
     });
 
@@ -123,8 +123,8 @@ export class AttendanceService {
     );
 
     attendance.checkOutTime = checkOutTime;
-    attendance.checkOutLatitude = dto.latitude;
-    attendance.checkOutLongitude = dto.longitude;
+    attendance.checkOutLatitude = dto.latitude ?? null;
+    attendance.checkOutLongitude = dto.longitude ?? null;
     attendance.totalMinutes = totalMinutes;
     attendance.overtimeMinutes = overtimeMinutes;
 

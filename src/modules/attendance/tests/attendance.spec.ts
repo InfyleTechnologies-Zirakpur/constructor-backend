@@ -212,6 +212,32 @@ describe('AttendanceService', () => {
         service.checkOut('user-1', { latitude: 30.21, longitude: 74.945 }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('should allow check-out without coordinates', async () => {
+      const checkInTime = new Date();
+      checkInTime.setHours(checkInTime.getHours() - 8);
+
+      attendanceRepo.findOne.mockResolvedValue({
+        id: 'att-1',
+        userId: 'user-1',
+        date: today,
+        checkInTime,
+        checkOutTime: null,
+        totalMinutes: 0,
+        overtimeMinutes: 0,
+        status: 'present',
+      });
+
+      const result = await service.checkOut('user-1', {});
+
+      expect(result).toHaveProperty('checkOut');
+      expect(attendanceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          checkOutLatitude: null,
+          checkOutLongitude: null,
+        }),
+      );
+    });
   });
 
   // ─── getById ──────────────────────────────────────
