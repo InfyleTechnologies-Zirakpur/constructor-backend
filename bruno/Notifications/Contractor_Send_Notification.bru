@@ -1,0 +1,24 @@
+meta {
+  name: Send Notification to Site Engineers (Contractor)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/notifications/send
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{contractorAccessToken}}
+}
+
+body:json {
+  {
+    "title": "Site Update Notice",
+    "body": "Please submit daily attendance and labour logs by 5 PM today.",
+    "event": "project_update",
+    "userIds": ["assigned-engineer-uuid-1"]
+  }
+}

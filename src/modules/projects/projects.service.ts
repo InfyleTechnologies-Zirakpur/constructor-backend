@@ -23,20 +23,38 @@ export class ProjectsService {
    * A contractor creates a project. We first resolve their contractor profile
    * from their userId, then link the project to that contractor.
    */
-  async create(userId: string, dto: CreateProjectDto): Promise<Project> {
-    const contractor = await this.contractorRepository.findOne({
-      where: { userId },
-    });
+  async create(
+    userId: string,
+    dto: CreateProjectDto,
+    role?: string,
+  ): Promise<Project> {
+    let contractorId: string;
 
-    if (!contractor) {
-      throw new NotFoundException(
-        'Contractor profile not found. Please create a contractor profile first.',
-      );
+    if (role === 'admin' && dto.contractorId) {
+      const contractor = await this.contractorRepository.findOne({
+        where: { id: dto.contractorId },
+      });
+      if (!contractor) {
+        throw new NotFoundException('Specified contractor not found');
+      }
+      contractorId = contractor.id;
+    } else {
+      const contractor = await this.contractorRepository.findOne({
+        where: { userId },
+      });
+
+      if (!contractor) {
+        throw new NotFoundException(
+          'Contractor profile not found. Please create a contractor profile first.',
+        );
+      }
+      contractorId = contractor.id;
     }
 
+    const { contractorId: _, ...projectData } = dto;
     const project = this.projectRepository.create({
-      ...dto,
-      contractorId: contractor.id,
+      ...projectData,
+      contractorId,
       status: 'draft',
     });
 
@@ -110,7 +128,7 @@ export class ProjectsService {
    */
   async update(
     id: string,
-    userId: string,
+    userId: string | undefined,
     dto: UpdateProjectDto,
   ): Promise<Project> {
     const project = await this.findOne(id, userId);

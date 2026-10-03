@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -6,6 +6,8 @@ import { Queue } from 'bullmq';
 import { Notification } from './entities/notification.entity.js';
 import { DeviceToken } from './entities/device-token.entity.js';
 import { User } from '../users/entities/user.entity.js';
+import { Contractor } from '../contractors/entities/contractor.entity.js';
+import { SiteEngineerAssignment } from '../site-engineers/entities/site-engineer-assignment.entity.js';
 import { FirebaseProvider } from './firebase.provider.js';
 import { RegisterDeviceDto } from './dto/create-notifications.dto.js';
 import {
@@ -45,6 +47,14 @@ export class NotificationsService {
     @Optional()
     @InjectQueue(NOTIFICATION_FANOUT_QUEUE)
     private readonly fanoutQueue?: Queue,
+
+    @Optional()
+    @InjectRepository(Contractor)
+    private readonly contractorRepo?: Repository<Contractor>,
+
+    @Optional()
+    @InjectRepository(SiteEngineerAssignment)
+    private readonly assignmentRepo?: Repository<SiteEngineerAssignment>,
   ) {}
 
   // ═══════════════════════════════════════════════════
@@ -695,14 +705,79 @@ export class NotificationsService {
   }
 
   /**
-   * Send notification from Admin API.
+   * Send notification from Admin or Contractor API.
+   * If sender is contractor, strict validation is enforced: recipient(s) must be
+   * site engineers assigned to that contractor's sites.
    */
-  async sendAdminNotification(
+  async sendNotification(
     dto: AdminSendNotificationDto,
+    senderId?: string,
+    senderRole?: string,
   ): Promise<{ count: number }> {
     let targetUserIds = dto.userIds ?? [];
 
-    // Broadcast if admin announcement and userIds empty
+    if (senderRole === 'contractor') {
+      if (!senderId) {
+        throw new ForbiddenException('Sender identification required');
+      }
+
+      if (!this.contractorRepo || !this.assignmentRepo) {
+        throw new ForbiddenException('Contractor notifications not configured');
+      }
+
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId: senderId },
+      });
+      if (!contractor) {
+        throw new ForbiddenException('Contractor profile not found');
+      }
+
+      // Find all Site Engineers assigned to any active site owned by this contractor
+      const assignments = await this.assignmentRepo
+        .createQueryBuilder('a')
+        .innerJoin('project_sites', 'ps', 'ps.id = a.siteId')
+        .innerJoin('projects', 'p', 'p.id = ps.projectId')
+        .where('p.contractorId = :contractorId', {
+          contractorId: contractor.id,
+        })
+        .andWhere('a.isActive = true')
+        .select('a.userId', 'userId')
+        .getRawMany();
+
+      const validEngineerIds = new Set(assignments.map((a: any) => a.userId));
+
+      if (targetUserIds.length > 0) {
+        for (const tid of targetUserIds) {
+          if (!validEngineerIds.has(tid)) {
+            throw new ForbiddenException(
+              'You can only notify site engineers assigned to your sites',
+            );
+          }
+        }
+      } else {
+        // Default to all site engineers assigned to this contractor's sites
+        targetUserIds = Array.from(validEngineerIds);
+      }
+
+      if (targetUserIds.length === 0) {
+        return { count: 0 };
+      }
+
+      const event = dto.event || 'project_update';
+      const bodyText = dto.body || (dto as any).message || '';
+      await this.dispatchFanoutP3(
+        targetUserIds,
+        event,
+        dto.title,
+        bodyText,
+        dto.referenceId,
+        { event },
+      );
+
+      return { count: targetUserIds.length };
+    }
+
+    // Admin or internal system broadcast flow
     if (
       (!dto.userIds || dto.userIds.length === 0) &&
       (dto.event === 'admin_announcement' || !dto.event)
@@ -719,16 +794,26 @@ export class NotificationsService {
     }
 
     const event = dto.event || 'admin_announcement';
+    const bodyText = dto.body || (dto as any).message || '';
     await this.dispatchFanoutP3(
       targetUserIds,
       event,
       dto.title,
-      dto.body,
+      bodyText,
       dto.referenceId,
       { event },
     );
 
     return { count: targetUserIds.length };
+  }
+
+  /**
+   * Send notification from Admin API (backward compatibility).
+   */
+  async sendAdminNotification(
+    dto: AdminSendNotificationDto,
+  ): Promise<{ count: number }> {
+    return this.sendNotification(dto, undefined, 'admin');
   }
 
   // ═══════════════════════════════════════════════════

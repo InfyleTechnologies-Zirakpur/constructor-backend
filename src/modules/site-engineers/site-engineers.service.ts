@@ -50,6 +50,15 @@ export class SiteEngineersService {
       throw new BadRequestException('Email already registered');
     }
 
+    if (dto.phone) {
+      const existingPhone = await this.userRepository.findOne({
+        where: { phone: dto.phone },
+      });
+      if (existingPhone) {
+        throw new BadRequestException('Phone already registered');
+      }
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = this.userRepository.create({
       fullName: dto.fullName,
@@ -111,18 +120,57 @@ export class SiteEngineersService {
   }
 
   async getStats(userId: string, role: string) {
-    const assignments = await this.assignmentRepository.find({
-      where: { userId, isActive: true },
-      relations: { site: true },
-    });
     if (role === 'site_engineer') {
+      const assignments = await this.assignmentRepository.find({
+        where: { userId, isActive: true },
+        relations: { site: true },
+      });
       return {
         assignedSites: assignments.length,
-        sites: assignments.map(a => ({ id: a.site.id, name: a.site.name, location: a.site.location })),
+        sites: assignments.map((a) => ({
+          id: a.site.id,
+          name: a.site.name,
+          location: a.site.location,
+        })),
       };
     }
-    // contractor/admin: reuse same but broader
-    return { assignedSites: assignments.length, sites: assignments.map(a => a.site) };
+
+    if (role === 'contractor') {
+      const contractor = await this.contractorRepository.findOne({
+        where: { userId },
+      });
+      if (!contractor) {
+        return { assignedEngineers: 0, activeSites: 0 };
+      }
+
+      const assignments = await this.assignmentRepository
+        .createQueryBuilder('assignment')
+        .innerJoinAndSelect('assignment.site', 'site')
+        .innerJoin('site.project', 'project')
+        .where('project.contractorId = :contractorId', {
+          contractorId: contractor.id,
+        })
+        .andWhere('assignment.isActive = :isActive', { isActive: true })
+        .getMany();
+
+      const engineerIds = new Set(assignments.map((a) => a.userId));
+      const siteIds = new Set(assignments.map((a) => a.siteId));
+
+      return {
+        assignedEngineers: engineerIds.size,
+        activeSites: siteIds.size,
+      };
+    }
+
+    // Admin: platform-wide active assignments
+    const allAssignments = await this.assignmentRepository.find({
+      where: { isActive: true },
+      relations: { site: true },
+    });
+    return {
+      assignedSites: allAssignments.length,
+      sites: allAssignments.map((a) => a.site),
+    };
   }
 
   /**

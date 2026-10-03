@@ -31,7 +31,11 @@ export class AttendanceController {
   @Post('attendance/check-in')
   @Roles('job_seeker', 'site_engineer')
   async checkIn(@Req() req: any, @Body() dto: CheckInDto) {
-    const data = await this.attendanceService.checkIn(req.user.id, dto);
+    const data = await this.attendanceService.checkIn(
+      req.user.id,
+      dto,
+      req.user.role,
+    );
     return { success: true, message: 'Checked in successfully', data };
   }
 
@@ -91,7 +95,11 @@ export class AttendanceController {
     @Body() dto: CheckInDto,
   ) {
     dto.siteId = siteId;
-    const data = await this.attendanceService.checkIn(req.user.id, dto);
+    const data = await this.attendanceService.checkIn(
+      req.user.id,
+      dto,
+      req.user.role,
+    );
     return { success: true, message: 'Checked in successfully', data };
   }
 

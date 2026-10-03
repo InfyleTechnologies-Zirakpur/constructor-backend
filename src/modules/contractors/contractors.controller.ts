@@ -56,6 +56,7 @@ export class ContractorsController {
       id,
       req.user.id,
       dto,
+      req.user.role,
     );
     return {
       message: 'Contractor profile updated successfully',

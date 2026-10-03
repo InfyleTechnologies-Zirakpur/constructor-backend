@@ -1,0 +1,21 @@
+meta {
+  name: Assign Engineer to Site
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/sites/{{siteId}}/assign-engineer
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{contractorToken}}
+}
+
+body:json {
+  {
+    "userId": "e4d3c2b1-a09f-8e7d-6c5b-4a3f2e1d0c9b"
+  }
+}

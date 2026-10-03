@@ -42,4 +42,8 @@ export class CreateProjectDto {
   @IsNumber()
   @Min(0)
   contractValue?: number;
+
+  @IsOptional()
+  @IsString()
+  contractorId?: string;
 }

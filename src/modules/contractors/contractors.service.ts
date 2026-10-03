@@ -39,6 +39,7 @@ export class ContractorsService {
     id: string,
     userId: string,
     dto: UpdateContractorDto,
+    userRole?: string,
   ): Promise<Contractor> {
     const contractor = await this.contractorsRepository.findOne({
       where: { id },
@@ -48,7 +49,7 @@ export class ContractorsService {
       throw new NotFoundException('Contractor profile not found');
     }
 
-    if (contractor.userId !== userId) {
+    if (userRole !== 'admin' && contractor.userId !== userId) {
       throw new ForbiddenException('You do not own this contractor profile');
     }
 

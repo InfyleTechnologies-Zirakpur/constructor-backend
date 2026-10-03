@@ -218,6 +218,9 @@ export class ReportsService {
       if (role !== 'admin' && role !== 'contractor') {
         throw new ForbiddenException('Only admin or contractor can review');
       }
+      if (role === 'contractor' && report.siteId) {
+        await this.verifySiteAccess(report.siteId, userId, role);
+      }
     }
 
     report.status = dto.status;
@@ -226,12 +229,21 @@ export class ReportsService {
     return this.reportRepo.save(report);
   }
 
-  async getReportById(id: string): Promise<DailyReport> {
+  async getReportById(
+    id: string,
+    userId?: string,
+    role?: string,
+  ): Promise<DailyReport> {
     const report = await this.reportRepo.findOne({
       where: { id },
       relations: { site: true },
     });
     if (!report) throw new NotFoundException('Report not found');
+
+    if (userId && role && report.siteId) {
+      await this.verifySiteAccess(report.siteId, userId, role);
+    }
+
     return report;
   }
 
@@ -249,7 +261,16 @@ export class ReportsService {
     return { items: reports, total: reports.length };
   }
 
-  async listProjectReports(projectId: string, status?: string) {
+  async listProjectReports(
+    projectId: string,
+    userId?: string,
+    role?: string,
+    status?: string,
+  ) {
+    if (userId && role) {
+      await this.verifyProjectAccess(projectId, userId, role);
+    }
+
     const query = this.reportRepo
       .createQueryBuilder('r')
       .leftJoinAndSelect('r.site', 'site')
