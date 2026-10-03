@@ -73,7 +73,8 @@ export class SiteEngineersService {
   }
 
   /**
-   * Returns site engineers. Admin sees all, contractor sees only engineers assigned to their sites.
+   * Returns all site engineers (including assigned and unassigned).
+   * For contractor, preserves existing assigned engineers first, then includes all available site engineers without duplicates.
    */
   async listEngineers(
     userId: string,
@@ -84,10 +85,10 @@ export class SiteEngineersService {
         where: { role: 'site_engineer' },
         order: { createdAt: 'DESC' },
       });
-      return { data: engineers.map(this.sanitize) };
+      return { data: engineers.map((engineer) => this.sanitize(engineer)) };
     }
 
-    // For Contractor, find engineers assigned to any of their sites
+    // Verify contractor profile exists
     const contractor = await this.contractorRepository.findOne({
       where: { userId },
     });
@@ -96,7 +97,7 @@ export class SiteEngineersService {
       throw new NotFoundException('Contractor profile not found');
     }
 
-    // Find all assignments for this contractor's sites
+    // 1. Fetch active assignments for this contractor's sites
     const assignments = await this.assignmentRepository
       .createQueryBuilder('assignment')
       .innerJoinAndSelect('assignment.user', 'user')
@@ -108,11 +109,30 @@ export class SiteEngineersService {
       .andWhere('assignment.isActive = :isActive', { isActive: true })
       .getMany();
 
-    // Deduplicate engineers using Map
+    // 2. Fetch all site engineers from the user repository
+    const allEngineers = await this.userRepository.find({
+      where: { role: 'site_engineer' },
+      order: { createdAt: 'DESC' },
+    });
+
+    // 3. Deduplicate using Map: preserve assigned engineers first, then add available unassigned engineers
     const engineerMap = new Map<string, Partial<User>>();
+
+    // Preserve existing assigned engineers
     for (const a of assignments) {
-      if (!engineerMap.has(a.user.id)) {
+      if (
+        a.user &&
+        a.user.role === 'site_engineer' &&
+        !engineerMap.has(a.user.id)
+      ) {
         engineerMap.set(a.user.id, this.sanitize(a.user));
+      }
+    }
+
+    // Include all available site engineers (unassigned or not yet in map)
+    for (const engineer of allEngineers) {
+      if (!engineerMap.has(engineer.id)) {
+        engineerMap.set(engineer.id, this.sanitize(engineer));
       }
     }
 

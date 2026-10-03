@@ -25,6 +25,13 @@ describe('SiteEngineersService', () => {
     passwordHash: 'hashed-password',
   };
 
+  const mockUser2 = {
+    id: 'user-2',
+    email: 'unassigned@example.com',
+    role: 'site_engineer',
+    passwordHash: 'hashed-password-2',
+  };
+
   const mockContractor = {
     id: 'contractor-1',
     userId: 'contractor-user-1',
@@ -146,6 +153,57 @@ describe('SiteEngineersService', () => {
       await expect(
         service.listEngineers('user-no-profile', 'contractor'),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return both assigned and unassigned engineers for contractor without duplicates', async () => {
+      userRepo.find.mockResolvedValueOnce([mockUser, mockUser2]);
+      const result = await service.listEngineers(
+        'contractor-user-1',
+        'contractor',
+      );
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].id).toBe('user-1');
+      expect(result.data[1].id).toBe('user-2');
+      expect(result.data[0]).not.toHaveProperty('passwordHash');
+      expect(result.data[1]).not.toHaveProperty('passwordHash');
+    });
+
+    it('should return available site engineers even if contractor has no active assignments', async () => {
+      assignmentRepo.createQueryBuilder.mockReturnValueOnce({
+        innerJoinAndSelect: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([]),
+      });
+      userRepo.find.mockResolvedValueOnce([mockUser2]);
+      const result = await service.listEngineers(
+        'contractor-user-1',
+        'contractor',
+      );
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('user-2');
+      expect(result.data[0].email).toBe('unassigned@example.com');
+    });
+
+    it('should deduplicate engineers assigned to multiple sites of contractor', async () => {
+      assignmentRepo.createQueryBuilder.mockReturnValueOnce({
+        innerJoinAndSelect: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([
+          { user: mockUser, site: { id: 'site-1' } },
+          { user: mockUser, site: { id: 'site-2' } },
+        ]),
+      });
+      userRepo.find.mockResolvedValueOnce([mockUser, mockUser2]);
+      const result = await service.listEngineers(
+        'contractor-user-1',
+        'contractor',
+      );
+      expect(result.data).toHaveLength(2);
+      expect(result.data.filter((e) => e.id === 'user-1')).toHaveLength(1);
     });
   });
 
