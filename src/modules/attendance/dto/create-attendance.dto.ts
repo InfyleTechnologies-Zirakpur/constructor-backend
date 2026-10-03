@@ -5,30 +5,46 @@ import { Type } from 'class-transformer';
  * Check-in DTO — matches the Flutter app contract.
  */
 export class CheckInDto {
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  latitude: number;
+  latitude?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  longitude: number;
+  longitude?: number;
 
   @IsOptional()
   @IsString()
   siteId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 /**
  * Check-out DTO.
  */
 export class CheckOutDto {
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  latitude: number;
+  latitude?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  longitude: number;
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  siteId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 /**

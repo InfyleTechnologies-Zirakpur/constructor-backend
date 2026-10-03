@@ -17,7 +17,13 @@ export class SitesController {
   @Post(':id/attendance/check-in')
   @Roles('site_engineer', 'contractor', 'admin')
   async checkIn(@Req() req: any, @Param('id') id: string, @Body() dto: any) {
-    return this.sitesService.checkIn(id, { ...dto, userId: req.user.id });
+    const userId =
+      dto?.userId ||
+      dto?.workerId ||
+      req.user?.id ||
+      req.user?.sub ||
+      req.user?._jwt?.sub;
+    return this.sitesService.checkIn(id, { ...dto, userId });
   }
 
   @Post(':id/daily-reports')
@@ -27,9 +33,16 @@ export class SitesController {
     @Param('id') id: string,
     @Body() dto: any,
   ) {
+    const userId =
+      dto?.submittedById ||
+      dto?.userId ||
+      req.user?.id ||
+      req.user?.sub ||
+      req.user?._jwt?.sub;
     return this.sitesService.createDailyReport(id, {
       ...dto,
-      userId: req.user.id,
+      userId,
+      submittedById: userId,
     });
   }
 }
