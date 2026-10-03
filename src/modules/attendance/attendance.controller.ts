@@ -32,10 +32,12 @@ export class AttendanceController {
   @Post('attendance/check-in')
   @Roles('job_seeker', 'site_engineer')
   async checkIn(@Req() req: any, @Body() dto: CheckInDto) {
+    const userId =
+      dto.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
     const data = await this.attendanceService.checkIn(
-      req.user.id,
+      userId,
       dto,
-      req.user.role,
+      req.user?.role,
     );
     return { success: true, message: 'Checked in successfully', data };
   }
@@ -46,7 +48,8 @@ export class AttendanceController {
   @Post('attendance/check-out')
   @Roles('job_seeker', 'site_engineer')
   async checkOut(@Req() req: any, @Body() dto: CheckOutDto) {
-    const data = await this.attendanceService.checkOut(req.user.id, dto);
+    const userId = req.user?.id || req.user?.sub || req.user?._jwt?.sub;
+    const data = await this.attendanceService.checkOut(userId, dto);
     return { success: true, message: 'Checked out successfully', data };
   }
 
@@ -134,10 +137,12 @@ export class AttendanceController {
     @Body() dto: CheckInDto,
   ) {
     dto.siteId = siteId;
+    const userId =
+      dto.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
     const data = await this.attendanceService.checkIn(
-      req.user.id,
+      userId,
       dto,
-      req.user.role,
+      req.user?.role,
     );
     return { success: true, message: 'Checked in successfully', data };
   }
@@ -148,7 +153,8 @@ export class AttendanceController {
   @Post('sites/:siteId/attendance/check-out')
   @Roles('site_engineer', 'contractor', 'admin')
   async siteCheckOut(@Req() req: any, @Body() dto: CheckOutDto) {
-    const data = await this.attendanceService.checkOut(req.user.id, dto);
+    const userId = req.user?.id || req.user?.sub || req.user?._jwt?.sub;
+    const data = await this.attendanceService.checkOut(userId, dto);
     return { success: true, message: 'Checked out successfully', data };
   }
 

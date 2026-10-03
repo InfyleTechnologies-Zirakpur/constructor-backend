@@ -47,6 +47,10 @@ export class AttendanceService {
     dto: CheckInDto,
     role?: string,
   ): Promise<Record<string, unknown>> {
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('User ID is required for check-in');
+    }
+
     const today = this.todayString();
 
     if (dto.siteId && role === 'site_engineer') {
@@ -90,6 +94,10 @@ export class AttendanceService {
     userId: string,
     dto: CheckOutDto,
   ): Promise<Record<string, unknown>> {
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('User ID is required for check-out');
+    }
+
     const today = this.todayString();
 
     const attendance = await this.attendanceRepo.findOne({

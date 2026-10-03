@@ -16,6 +16,10 @@ export class CheckInDto {
   @IsOptional()
   @IsString()
   siteId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 /**
