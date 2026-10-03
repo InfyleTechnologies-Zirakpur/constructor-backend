@@ -1,0 +1,15 @@
+meta {
+  name: Today Attendance
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/attendance/today
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

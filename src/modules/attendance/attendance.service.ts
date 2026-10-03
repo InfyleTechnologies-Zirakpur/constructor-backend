@@ -133,15 +133,20 @@ export class AttendanceService {
       query.where('att.userId = :userId', { userId });
     } else if (role === 'contractor') {
       // Contractor only sees attendance for their own project sites
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
-      if (!contractor) return { items: [], summary: { days: 0, overtime: '0h' } };
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
+      if (!contractor)
+        return { items: [], summary: { days: 0, overtime: '0h' } };
 
       // Get siteIds from projects owned by this contractor
       const ownedSites = await this.projectRepo
         .createQueryBuilder('p')
         .innerJoin('project_sites', 'ps', 'ps.projectId = p.id')
         .select('ps.id', 'siteId')
-        .where('p.contractorId = :contractorId', { contractorId: contractor.id })
+        .where('p.contractorId = :contractorId', {
+          contractorId: contractor.id,
+        })
         .getRawMany();
 
       const siteIds = ownedSites.map((r: any) => r.siteId).filter(Boolean);
@@ -192,6 +197,49 @@ export class AttendanceService {
     };
   }
 
+  // ─── GET TODAY ATTENDANCE ─────────────────────────
+
+  async getToday(
+    userId: string,
+    role?: string,
+    targetUserId?: string,
+  ): Promise<Record<string, unknown> | null> {
+    const today = this.todayString();
+    const effectiveUserId =
+      (role === 'admin' || role === 'contractor') && targetUserId
+        ? targetUserId
+        : userId;
+
+    const attendance = await this.attendanceRepo.findOne({
+      where: { userId: effectiveUserId, date: today },
+      relations: { site: true },
+    });
+
+    if (!attendance) {
+      return null;
+    }
+
+    return this.formatAttendanceResponse(attendance);
+  }
+
+  // ─── GET ATTENDANCE SUMMARY ───────────────────────
+
+  async getSummary(
+    userId: string,
+    role: string,
+    month?: string,
+    siteId?: string,
+  ) {
+    const listResult = await this.list(userId, role, month, siteId);
+    return {
+      days: listResult.summary.days,
+      totalDays: listResult.summary.days,
+      overtime: listResult.summary.overtime,
+      summary: listResult.summary,
+      items: listResult.items,
+    };
+  }
+
   // ─── GET SINGLE ATTENDANCE ────────────────────────
 
   async getById(id: string, userId: string, role: string) {
@@ -221,7 +269,12 @@ export class AttendanceService {
    * Site engineers can only query sites they are assigned to.
    * Contractors can only query sites they own.
    */
-  async getSiteAttendance(siteId: string, userId: string, role: string, date?: string) {
+  async getSiteAttendance(
+    siteId: string,
+    userId: string,
+    role: string,
+    date?: string,
+  ) {
     // Access control: site engineer must be assigned; contractor must own
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
@@ -291,7 +344,12 @@ export class AttendanceService {
    * Site engineers can only query sites they are assigned to.
    * Contractors can only query sites they own.
    */
-  async getLabourRecords(siteId: string, userId: string, role: string, date?: string) {
+  async getLabourRecords(
+    siteId: string,
+    userId: string,
+    role: string,
+    date?: string,
+  ) {
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
     } else if (role === 'contractor') {
@@ -396,13 +454,16 @@ export class AttendanceService {
     userId: string,
   ): Promise<void> {
     const contractor = await this.contractorRepo.findOne({ where: { userId } });
-    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+    if (!contractor)
+      throw new ForbiddenException('Contractor profile not found');
 
     const project = await this.projectRepo
       .createQueryBuilder('p')
       .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
       .where('ps.id = :siteId', { siteId })
-      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .andWhere('p."contractorId" = :contractorId', {
+        contractorId: contractor.id,
+      })
       .getOne();
 
     if (!project) {

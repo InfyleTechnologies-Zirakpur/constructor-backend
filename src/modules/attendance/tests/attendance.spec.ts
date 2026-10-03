@@ -308,4 +308,62 @@ describe('AttendanceService', () => {
       );
     });
   });
+
+  describe('getToday', () => {
+    it('should return formatted record if checked in today', async () => {
+      const mockRecord = {
+        id: 'att-1',
+        userId: 'worker-1',
+        date: today,
+        checkInTime: new Date('2026-10-03T09:00:00Z'),
+        checkOutTime: null,
+        totalMinutes: 0,
+        overtimeMinutes: 0,
+        status: 'present',
+      };
+      attendanceRepo.findOne.mockResolvedValueOnce(mockRecord);
+
+      const result = await service.getToday('worker-1', 'job_seeker');
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('att-1');
+      expect(result?.date).toBe(today);
+      expect(result?.status).toBe('present');
+    });
+
+    it('should return null if not checked in today', async () => {
+      attendanceRepo.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.getToday('worker-1', 'job_seeker');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getSummary', () => {
+    it('should return summary and items for month', async () => {
+      attendanceRepo.createQueryBuilder.mockReturnValueOnce({
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([
+          {
+            id: 'att-1',
+            date: '2026-10-01',
+            status: 'present',
+            totalMinutes: 540,
+            overtimeMinutes: 60,
+          },
+        ]),
+      });
+
+      const result = await service.getSummary(
+        'worker-1',
+        'job_seeker',
+        '2026-10',
+      );
+      expect(result.days).toBe(1);
+      expect(result.summary.days).toBe(1);
+      expect(result.summary.overtime).toBe('1h 00m');
+      expect(result.items).toHaveLength(1);
+    });
+  });
 });

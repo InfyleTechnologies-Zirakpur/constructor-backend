@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service.js';
 import {
@@ -50,6 +51,41 @@ export class AttendanceController {
   }
 
   /**
+   * GET /attendance/today — Get today's attendance for the authenticated user.
+   * Defined before :id to prevent 'today' from being captured as a UUID parameter.
+   */
+  @Get('attendance/today')
+  @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
+  async getToday(@Req() req: any, @Query('userId') targetUserId?: string) {
+    const data = await this.attendanceService.getToday(
+      req.user.id,
+      req.user.role,
+      targetUserId,
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * GET /attendance/summary — Get attendance summary (supports ?month=YYYY-MM).
+   * Defined before :id to prevent 'summary' from being captured as a UUID parameter.
+   */
+  @Get('attendance/summary')
+  @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
+  async getSummary(
+    @Req() req: any,
+    @Query('month') month?: string,
+    @Query('siteId') siteId?: string,
+  ) {
+    const data = await this.attendanceService.getSummary(
+      req.user.id,
+      req.user.role,
+      month,
+      siteId,
+    );
+    return { success: true, data };
+  }
+
+  /**
    * GET /attendance — List attendance history (supports ?month=YYYY-MM).
    */
   @Get('attendance')
@@ -73,7 +109,10 @@ export class AttendanceController {
    */
   @Get('attendance/:id')
   @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
-  async getById(@Req() req: any, @Param('id') id: string) {
+  async getById(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
     const data = await this.attendanceService.getById(
       id,
       req.user.id,

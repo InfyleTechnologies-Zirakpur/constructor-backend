@@ -1,0 +1,19 @@
+meta {
+  name: Attendance Summary
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/attendance/summary?month=2026-10
+  body: none
+  auth: bearer
+}
+
+params:query {
+  month: 2026-10
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
