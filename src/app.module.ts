@@ -33,6 +33,7 @@ import { DocumentsModule } from './modules/documents/documents.module.js';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { WorkerAppModule } from './modules/worker-app/worker-app.module.js';
 import { ConversationsModule } from './modules/conversations/conversations.module.js';
+import { PostsModule } from './modules/posts/posts.module.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
@@ -84,7 +85,7 @@ const queueImports = queueEnabled
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     ...queueImports,
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     // Rate limiting: global defaults (overridable per-route with @Throttle)
     ThrottlerModule.forRoot([
       {
@@ -129,6 +130,7 @@ const queueImports = queueEnabled
     AuditLogsModule,
     WorkerAppModule,
     ConversationsModule,
+    PostsModule,
   ],
   controllers: [
     AppController,

@@ -1,0 +1,26 @@
+meta {
+  name: Update Post
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/posts/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 00000000-0000-0000-0000-000000000000
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "description": "Updated status: PCC pouring completed successfully today. Curing underway.",
+    "location": "Sector 82, Mohali, Punjab"
+  }
+}

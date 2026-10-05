@@ -1,0 +1,19 @@
+meta {
+  name: Toggle Like Post
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/posts/:id/like
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 00000000-0000-0000-0000-000000000000
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

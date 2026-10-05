@@ -1,0 +1,25 @@
+meta {
+  name: Add Comment
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/posts/:id/comments
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 00000000-0000-0000-0000-000000000000
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "content": "Impressive speed on the excavation phase! Keep it up."
+  }
+}

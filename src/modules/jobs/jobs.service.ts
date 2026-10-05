@@ -278,4 +278,42 @@ export class JobsService {
 
     return this.jobRepository.save(job);
   }
+
+  /**
+   * Fetch count of Active Jobs and New Jobs Today.
+   * - Active Jobs: Total number of currently active/published jobs.
+   * - New Jobs Today: Total number of active/published jobs created today.
+   */
+  async getJobCounts(): Promise<{ activeJobs: number; newJobsToday: number }> {
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const activeStatuses = ['published', 'active'];
+
+    const [activeJobs, newJobsToday] = await Promise.all([
+      this.jobRepository
+        .createQueryBuilder('job')
+        .where('job.status IN (:...activeStatuses)', { activeStatuses })
+        .getCount(),
+      this.jobRepository
+        .createQueryBuilder('job')
+        .where('job.status IN (:...activeStatuses)', { activeStatuses })
+        .andWhere('job.createdAt >= :startOfToday', { startOfToday })
+        .getCount(),
+    ]);
+
+    return {
+      activeJobs: Number(activeJobs) || 0,
+      newJobsToday: Number(newJobsToday) || 0,
+    };
+  }
 }
+
