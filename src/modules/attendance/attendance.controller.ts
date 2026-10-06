@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service.js';
 import {
@@ -31,10 +32,12 @@ export class AttendanceController {
   @Post('attendance/check-in')
   @Roles('job_seeker', 'site_engineer')
   async checkIn(@Req() req: any, @Body() dto: CheckInDto) {
+    const userId =
+      dto.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
     const data = await this.attendanceService.checkIn(
-      req.user.id,
+      userId,
       dto,
-      req.user.role,
+      req.user?.role,
     );
     return { success: true, message: 'Checked in successfully', data };
   }
@@ -44,9 +47,47 @@ export class AttendanceController {
    */
   @Post('attendance/check-out')
   @Roles('job_seeker', 'site_engineer')
-  async checkOut(@Req() req: any, @Body() dto: CheckOutDto) {
-    const data = await this.attendanceService.checkOut(req.user.id, dto);
+  async checkOut(@Req() req: any, @Body() dto: CheckOutDto = {}) {
+    const payload = dto || ({} as CheckOutDto);
+    const userId =
+      payload.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
+    const data = await this.attendanceService.checkOut(userId, payload);
     return { success: true, message: 'Checked out successfully', data };
+  }
+
+  /**
+   * GET /attendance/today — Get today's attendance for the authenticated user.
+   * Defined before :id to prevent 'today' from being captured as a UUID parameter.
+   */
+  @Get('attendance/today')
+  @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
+  async getToday(@Req() req: any, @Query('userId') targetUserId?: string) {
+    const data = await this.attendanceService.getToday(
+      req.user.id,
+      req.user.role,
+      targetUserId,
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * GET /attendance/summary — Get attendance summary (supports ?month=YYYY-MM).
+   * Defined before :id to prevent 'summary' from being captured as a UUID parameter.
+   */
+  @Get('attendance/summary')
+  @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
+  async getSummary(
+    @Req() req: any,
+    @Query('month') month?: string,
+    @Query('siteId') siteId?: string,
+  ) {
+    const data = await this.attendanceService.getSummary(
+      req.user.id,
+      req.user.role,
+      month,
+      siteId,
+    );
+    return { success: true, data };
   }
 
   /**
@@ -73,7 +114,10 @@ export class AttendanceController {
    */
   @Get('attendance/:id')
   @Roles('admin', 'contractor', 'job_seeker', 'site_engineer')
-  async getById(@Req() req: any, @Param('id') id: string) {
+  async getById(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
     const data = await this.attendanceService.getById(
       id,
       req.user.id,
@@ -95,10 +139,12 @@ export class AttendanceController {
     @Body() dto: CheckInDto,
   ) {
     dto.siteId = siteId;
+    const userId =
+      dto.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
     const data = await this.attendanceService.checkIn(
-      req.user.id,
+      userId,
       dto,
-      req.user.role,
+      req.user?.role,
     );
     return { success: true, message: 'Checked in successfully', data };
   }
@@ -108,8 +154,16 @@ export class AttendanceController {
    */
   @Post('sites/:siteId/attendance/check-out')
   @Roles('site_engineer', 'contractor', 'admin')
-  async siteCheckOut(@Req() req: any, @Body() dto: CheckOutDto) {
-    const data = await this.attendanceService.checkOut(req.user.id, dto);
+  async siteCheckOut(
+    @Req() req: any,
+    @Param('siteId') siteId: string,
+    @Body() dto: CheckOutDto = {},
+  ) {
+    const payload = dto || ({} as CheckOutDto);
+    payload.siteId = siteId;
+    const userId =
+      payload.userId || req.user?.id || req.user?.sub || req.user?._jwt?.sub;
+    const data = await this.attendanceService.checkOut(userId, payload);
     return { success: true, message: 'Checked out successfully', data };
   }
 
