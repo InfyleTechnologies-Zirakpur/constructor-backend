@@ -51,6 +51,7 @@ describe('JobsService', () => {
               skip: vi.fn().mockReturnThis(),
               take: vi.fn().mockReturnThis(),
               getManyAndCount: vi.fn().mockResolvedValue([[mockJob], 1]),
+              getCount: vi.fn().mockResolvedValue(42),
             }),
           },
         },
@@ -176,6 +177,51 @@ describe('JobsService', () => {
       });
       expect(result.status).toBe('rejected');
       expect(saveSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('getJobCounts', () => {
+    it('should return activeJobs and newJobsToday counts', async () => {
+      const qb: any = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getCount: vi
+          .fn()
+          .mockResolvedValueOnce(125) // activeJobs
+          .mockResolvedValueOnce(18), // newJobsToday
+      };
+      vi.spyOn(jobRepo, 'createQueryBuilder').mockReturnValue(qb);
+
+      const result = await service.getJobCounts();
+
+      expect(result).toEqual({
+        activeJobs: 125,
+        newJobsToday: 18,
+      });
+      expect(qb.where).toHaveBeenCalledWith(
+        'job.status IN (:...activeStatuses)',
+        expect.objectContaining({ activeStatuses: ['published', 'active'] }),
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'job.createdAt >= :startOfToday',
+        expect.any(Object),
+      );
+    });
+
+    it('should default counts to 0 if no matching jobs exist', async () => {
+      const qb: any = {
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getCount: vi.fn().mockResolvedValue(0),
+      };
+      vi.spyOn(jobRepo, 'createQueryBuilder').mockReturnValue(qb);
+
+      const result = await service.getJobCounts();
+
+      expect(result).toEqual({
+        activeJobs: 0,
+        newJobsToday: 0,
+      });
     });
   });
 });

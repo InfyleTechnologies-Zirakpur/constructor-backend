@@ -22,6 +22,9 @@ import { AuditLog } from '../modules/audit-logs/entities/audit-log.entity.js';
 import { DeviceToken } from '../modules/notifications/entities/device-token.entity.js';
 import { Conversation } from '../modules/conversations/entities/conversation.entity.js';
 import { Message } from '../modules/conversations/entities/message.entity.js';
+import { Post } from '../modules/posts/entities/post.entity.js';
+import { PostComment } from '../modules/posts/entities/post-comment.entity.js';
+import { PostLike } from '../modules/posts/entities/post-like.entity.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -63,6 +66,9 @@ const entities = [
   DeviceToken,
   Conversation,
   Message,
+  Post,
+  PostComment,
+  PostLike,
 ];
 
 @Module({

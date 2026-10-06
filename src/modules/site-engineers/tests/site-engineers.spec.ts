@@ -265,7 +265,7 @@ describe('SiteEngineersService', () => {
       ]);
       const result = await service.getStats('user-1', 'site_engineer');
       expect(result.assignedSites).toBe(1);
-      expect(result.sites[0].name).toBe('Site 1');
+      expect(result.sites![0].name).toBe('Site 1');
     });
 
     it('should return assigned engineer and active site counts for contractor', async () => {

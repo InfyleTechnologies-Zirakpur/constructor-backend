@@ -1,0 +1,15 @@
+meta {
+  name: List Comments
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/posts/:id/comments?page=1&limit=10
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 00000000-0000-0000-0000-000000000000
+}

@@ -14,12 +14,12 @@ import { CreateJobDto } from './dto/create-jobs.dto.js';
 import { UpdateJobDto, ModerateJobDto } from './dto/update-jobs.dto.js';
 import { CreateApplicationDto } from '../applications/dto/create-applications.dto.js';
 import { ApplicationsService } from '../applications/applications.service.js';
-import { AuthGuard } from '@nestjs/passport';
+import { JobAuthGuard } from '../../common/guards/job-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 
 @Controller('jobs')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(JobAuthGuard, RolesGuard)
 export class JobsController {
   constructor(
     private readonly jobsService: JobsService,
@@ -82,6 +82,22 @@ export class JobsController {
   @Roles('job_seeker')
   async savedJobs(@Req() req: any) {
     return this.jobsService.getSavedJobs(req.user.id);
+  }
+
+  /**
+   * GET /jobs/counts — Fetch counts of Active Jobs and New Jobs Today.
+   */
+  @Get('counts')
+  async getCounts() {
+    return this.jobsService.getJobCounts();
+  }
+
+  /**
+   * GET /jobs/stats — Alias for job counts.
+   */
+  @Get('stats')
+  async getStats() {
+    return this.jobsService.getJobCounts();
   }
 
   @Get(':id')

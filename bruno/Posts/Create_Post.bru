@@ -1,0 +1,32 @@
+meta {
+  name: Create Post
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/posts
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "title": "Site Excavation Progress",
+    "description": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning.",
+    "coverPhoto": "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+    "photos": [
+      "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+      "https://construction-site.b-cdn.net/posts/soil-test.jpg"
+    ],
+    "tags": ["excavation", "foundation", "site-update"],
+    "location": "Sector 82, Mohali, Punjab",
+    "latitude": 30.6782,
+    "longitude": 76.7324,
+    "visibility": "PUBLIC"
+  }
+}

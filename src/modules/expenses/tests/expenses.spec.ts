@@ -52,6 +52,12 @@ describe('ExpensesService', () => {
           provide: getRepositoryToken(Project),
           useValue: {
             findOne: vi.fn(),
+            createQueryBuilder: vi.fn(() => ({
+              innerJoin: vi.fn().mockReturnThis(),
+              where: vi.fn().mockReturnThis(),
+              andWhere: vi.fn().mockReturnThis(),
+              getOne: vi.fn(),
+            })),
           },
         },
       ],
@@ -115,7 +121,12 @@ describe('ExpensesService', () => {
 
     it('should verify site access for contractor owning the project', async () => {
       contractorRepo.findOne.mockResolvedValue({ id: 'c-1', userId: 'user-c' });
-      projectRepo.findOne.mockResolvedValue({ id: 'proj-1', contractorId: 'c-1' });
+      projectRepo.createQueryBuilder.mockReturnValue({
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue({ id: 'proj-1', contractorId: 'c-1' }),
+      });
 
       await service.createExpense('site-1', 'user-c', 'contractor', {
         date: '2026-09-09',
@@ -129,7 +140,12 @@ describe('ExpensesService', () => {
 
     it('should throw ForbiddenException if contractor does not own the project', async () => {
       contractorRepo.findOne.mockResolvedValue({ id: 'c-1', userId: 'user-c' });
-      projectRepo.findOne.mockResolvedValue(null);
+      projectRepo.createQueryBuilder.mockReturnValue({
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(null),
+      });
 
       await expect(
         service.createExpense('site-1', 'user-c', 'contractor', {
@@ -144,13 +160,13 @@ describe('ExpensesService', () => {
   describe('getExpenseById', () => {
     it('should return the expense', async () => {
       expenseRepo.findOne.mockResolvedValue({ id: 'exp-1', amount: 500 });
-      const result = await service.getExpenseById('exp-1');
+      const result = await service.getExpenseById('exp-1', 'admin-id', 'admin');
       expect(result.amount).toEqual(500);
     });
 
     it('should throw NotFoundException if not found', async () => {
       expenseRepo.findOne.mockResolvedValue(null);
-      await expect(service.getExpenseById('invalid')).rejects.toThrow(
+      await expect(service.getExpenseById('invalid', 'admin-id', 'admin')).rejects.toThrow(
         NotFoundException,
       );
     });

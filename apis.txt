@@ -1,0 +1,699 @@
+================================================================================
+CHANGED APIS
+================================================================================
+No existing APIs were modified. All functionality was implemented using new dedicated modular endpoints.
+
+================================================================================
+NEW APIS CREATED
+================================================================================
+
+--------------------------------------------------------------------------------
+1. List Home Feed (Public Post Feed)
+--------------------------------------------------------------------------------
+Method: GET
+Endpoint: /api/v1/posts
+Authentication: Optional (Public / JWT Bearer)
+Required Role: None (Public, job_seeker, company, admin)
+
+Headers:
+  Accept: application/json
+  Authorization: Bearer <token> (Optional)
+
+Path Parameters:
+  None
+
+Query Parameters:
+  page (number, optional, default: 1): Page index (minimum: 1)
+  limit (number, optional, default: 10): Page size (minimum: 1, maximum: 100)
+  search (string, optional): Keyword search matching title, description, or tags
+  tag (string, optional): Tag filter
+  authorId (UUID, optional): Filter posts by author UUID (Honored ONLY for ADMIN; ignored for non-admin and anonymous requests)
+
+Request Body:
+  None
+
+Authorization & Business Rules:
+  - Returns only non-deleted posts (deletedAt IS NULL) with PUBLIC status/visibility.
+  - Sorted newest first (createdAt DESC).
+  - List items contain coverPhoto and truncatedDescription (up to 150 characters).
+  - isMine dynamically evaluated: true if authenticated user is the post author, false otherwise.
+  - isLiked dynamically evaluated: true if authenticated user has liked the post, false otherwise.
+  - ADMIN responses include the author object (id, name, fullName, role, avatarUrl).
+  - JOB_SEEKER, COMPANY, and ANONYMOUS responses DO NOT contain author or authorRole fields.
+
+Successful Response (200 OK - Non-Admin / Public View):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": "7f000001-9999-11ef-9c2b-c8525b68f123",
+        "title": "Excavation and Foundation Progress",
+        "description": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning.",
+        "truncatedDescription": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning.",
+        "coverPhoto": "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+        "photos": [
+          "https://construction-site.b-cdn.net/posts/excavation-cover.jpg"
+        ],
+        "tags": [
+          "excavation",
+          "foundation"
+        ],
+        "location": "Sector 82, Mohali, Punjab",
+        "latitude": 30.6782,
+        "longitude": 76.7324,
+        "visibility": "PUBLIC",
+        "status": "PUBLIC",
+        "likesCount": 12,
+        "commentsCount": 4,
+        "sharesCount": 2,
+        "isMine": false,
+        "isLiked": true,
+        "createdAt": "2026-10-04T08:30:00.000Z",
+        "updatedAt": "2026-10-04T08:30:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
+
+Successful Response (200 OK - Admin View):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": "7f000001-9999-11ef-9c2b-c8525b68f123",
+        "title": "Excavation and Foundation Progress",
+        "description": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning.",
+        "truncatedDescription": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning.",
+        "coverPhoto": "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+        "photos": [
+          "https://construction-site.b-cdn.net/posts/excavation-cover.jpg"
+        ],
+        "tags": [
+          "excavation",
+          "foundation"
+        ],
+        "location": "Sector 82, Mohali, Punjab",
+        "latitude": 30.6782,
+        "longitude": 76.7324,
+        "visibility": "PUBLIC",
+        "status": "PUBLIC",
+        "likesCount": 12,
+        "commentsCount": 4,
+        "sharesCount": 2,
+        "isMine": false,
+        "isLiked": false,
+        "createdAt": "2026-10-04T08:30:00.000Z",
+        "updatedAt": "2026-10-04T08:30:00.000Z",
+        "author": {
+          "id": "seeker-1-uuid",
+          "name": "Ravi Kumar",
+          "fullName": "Ravi Kumar",
+          "role": "job_seeker",
+          "avatarUrl": null
+        }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
+
+Error Responses:
+  400 Bad Request:
+  {
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+      "limit": ["limit must not be greater than 100"]
+    }
+  }
+
+--------------------------------------------------------------------------------
+2. Get Post Detail
+--------------------------------------------------------------------------------
+Method: GET
+Endpoint: /api/v1/posts/:id
+Authentication: Optional (Public / JWT Bearer)
+Required Role: None (Public, job_seeker, company, admin)
+
+Headers:
+  Accept: application/json
+  Authorization: Bearer <token> (Optional)
+
+Path Parameters:
+  id (UUID, required): Post unique identifier
+
+Query Parameters:
+  None
+
+Request Body:
+  None
+
+Authorization & Business Rules:
+  - Returns complete post details including all media photos, full description, tags, location, and coordinates.
+  - Soft-deleted posts return 404 Not Found.
+  - isMine dynamically evaluated.
+  - isLiked dynamically evaluated.
+  - ADMIN receives author details.
+  - JOB_SEEKER, COMPANY, and ANONYMOUS users do not receive author details.
+
+Successful Response (200 OK - Non-Admin View):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": "7f000001-9999-11ef-9c2b-c8525b68f123",
+    "title": "Excavation and Foundation Progress",
+    "description": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning. Site is prepared for safety compliance inspection.",
+    "truncatedDescription": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning. Site is prepared for safety compliance inspection.",
+    "coverPhoto": "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+    "photos": [
+      "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+      "https://construction-site.b-cdn.net/posts/soil-test.jpg"
+    ],
+    "tags": [
+      "excavation",
+      "foundation",
+      "safety"
+    ],
+    "location": "Sector 82, Mohali, Punjab",
+    "latitude": 30.6782,
+    "longitude": 76.7324,
+    "visibility": "PUBLIC",
+    "status": "PUBLIC",
+    "likesCount": 12,
+    "commentsCount": 4,
+    "sharesCount": 2,
+    "isMine": false,
+    "isLiked": false,
+    "createdAt": "2026-10-04T08:30:00.000Z",
+    "updatedAt": "2026-10-04T08:30:00.000Z"
+  }
+}
+
+Successful Response (200 OK - Admin View):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": "7f000001-9999-11ef-9c2b-c8525b68f123",
+    "title": "Excavation and Foundation Progress",
+    "description": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning. Site is prepared for safety compliance inspection.",
+    "truncatedDescription": "Completed foundational excavation and soil testing for Tower A. Ready for PCC pouring tomorrow morning. Site is prepared for safety compliance inspection.",
+    "coverPhoto": "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+    "photos": [
+      "https://construction-site.b-cdn.net/posts/excavation-cover.jpg",
+      "https://construction-site.b-cdn.net/posts/soil-test.jpg"
+    ],
+    "tags": [
+      "excavation",
+      "foundation",
+      "safety"
+    ],
+    "location": "Sector 82, Mohali, Punjab",
+    "latitude": 30.6782,
+    "longitude": 76.7324,
+    "visibility": "PUBLIC",
+    "status": "PUBLIC",
+    "likesCount": 12,
+    "commentsCount": 4,
+    "sharesCount": 2,
+    "isMine": false,
+    "isLiked": false,
+    "createdAt": "2026-10-04T08:30:00.000Z",
+    "updatedAt": "2026-10-04T08:30:00.000Z",
+    "author": {
+      "id": "seeker-1-uuid",
+      "name": "Ravi Kumar",
+      "fullName": "Ravi Kumar",
+      "role": "job_seeker",
+      "avatarUrl": null
+    }
+  }
+}
+
+Error Responses:
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+
+--------------------------------------------------------------------------------
+3. Create Post
+--------------------------------------------------------------------------------
+Method: POST
+Endpoint: /api/v1/posts
+Authentication: Required (JWT Bearer)
+Required Role: admin, job_seeker, company
+
+Headers:
+  Authorization: Bearer <token>
+  Content-Type: application/json
+  Accept: application/json
+
+Path Parameters:
+  None
+
+Query Parameters:
+  None
+
+Request Body:
+{
+  "title": "Steel Framing Inspection Passed",
+  "description": "Third floor structural beam placement and welding inspection passed today with zero defects.",
+  "coverPhoto": "https://construction-site.b-cdn.net/posts/frame-1.jpg",
+  "photos": [
+    "https://construction-site.b-cdn.net/posts/frame-1.jpg",
+    "https://construction-site.b-cdn.net/posts/frame-2.jpg"
+  ],
+  "tags": [
+    "structural",
+    "inspection",
+    "quality"
+  ],
+  "location": "Chandigarh IT Park, Site 4",
+  "latitude": 30.7251,
+  "longitude": 76.8423,
+  "visibility": "PUBLIC"
+}
+
+Authorization & Business Rules:
+  - Links post authorId to the authenticated requester (req.user.id).
+  - Initializes likesCount = 0, commentsCount = 0, sharesCount = 0.
+  - Defaults visibility and status to PUBLIC.
+  - Author details in response are returned only if creator is ADMIN.
+
+Successful Response (201 Created):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": "8a110002-9999-11ef-9c2b-c8525b68f456",
+    "title": "Steel Framing Inspection Passed",
+    "description": "Third floor structural beam placement and welding inspection passed today with zero defects.",
+    "truncatedDescription": "Third floor structural beam placement and welding inspection passed today with zero defects.",
+    "coverPhoto": "https://construction-site.b-cdn.net/posts/frame-1.jpg",
+    "photos": [
+      "https://construction-site.b-cdn.net/posts/frame-1.jpg",
+      "https://construction-site.b-cdn.net/posts/frame-2.jpg"
+    ],
+    "tags": [
+      "structural",
+      "inspection",
+      "quality"
+    ],
+    "location": "Chandigarh IT Park, Site 4",
+    "latitude": 30.7251,
+    "longitude": 76.8423,
+    "visibility": "PUBLIC",
+    "status": "PUBLIC",
+    "likesCount": 0,
+    "commentsCount": 0,
+    "sharesCount": 0,
+    "isMine": true,
+    "isLiked": false,
+    "createdAt": "2026-10-05T09:00:00.000Z",
+    "updatedAt": "2026-10-05T09:00:00.000Z"
+  }
+}
+
+Error Responses:
+  401 Unauthorized:
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  422 Unprocessable Entity:
+  {
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+      "description": ["description should not be empty"]
+    }
+  }
+
+--------------------------------------------------------------------------------
+4. Update Post
+--------------------------------------------------------------------------------
+Method: PATCH
+Endpoint: /api/v1/posts/:id
+Authentication: Required (JWT Bearer)
+Required Role: admin, job_seeker, company
+
+Headers:
+  Authorization: Bearer <token>
+  Content-Type: application/json
+  Accept: application/json
+
+Path Parameters:
+  id (UUID, required): The post UUID to update
+
+Query Parameters:
+  None
+
+Request Body:
+{
+  "description": "Updated report: Quality inspector signed off and certified all beam welds.",
+  "location": "Chandigarh IT Park, Site 4 (Block B)"
+}
+
+Authorization & Business Rules:
+  - ADMIN can edit any post.
+  - JOB_SEEKER and COMPANY can edit ONLY posts where post.authorId === requester.id.
+  - If a user attempts to update another user's post, 403 Forbidden is returned.
+  - Soft-deleted posts return 404 Not Found.
+
+Successful Response (200 OK):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": "8a110002-9999-11ef-9c2b-c8525b68f456",
+    "title": "Steel Framing Inspection Passed",
+    "description": "Updated report: Quality inspector signed off and certified all beam welds.",
+    "truncatedDescription": "Updated report: Quality inspector signed off and certified all beam welds.",
+    "coverPhoto": "https://construction-site.b-cdn.net/posts/frame-1.jpg",
+    "photos": [
+      "https://construction-site.b-cdn.net/posts/frame-1.jpg"
+    ],
+    "tags": [
+      "structural",
+      "inspection",
+      "quality"
+    ],
+    "location": "Chandigarh IT Park, Site 4 (Block B)",
+    "likesCount": 0,
+    "commentsCount": 0,
+    "sharesCount": 0,
+    "isMine": true,
+    "isLiked": false,
+    "createdAt": "2026-10-05T09:00:00.000Z",
+    "updatedAt": "2026-10-05T09:15:00.000Z"
+  }
+}
+
+Error Responses:
+  403 Forbidden:
+  {
+    "success": false,
+    "message": "You are not allowed to update this post"
+  }
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+
+--------------------------------------------------------------------------------
+5. Delete Post (Soft Delete)
+--------------------------------------------------------------------------------
+Method: DELETE
+Endpoint: /api/v1/posts/:id
+Authentication: Required (JWT Bearer)
+Required Role: admin, job_seeker, company
+
+Headers:
+  Authorization: Bearer <token>
+  Accept: application/json
+
+Path Parameters:
+  id (UUID, required): The post UUID to delete
+
+Query Parameters:
+  None
+
+Request Body:
+  None
+
+Authorization & Business Rules:
+  - ADMIN can delete any post.
+  - JOB_SEEKER and COMPANY can delete ONLY posts where post.authorId === requester.id.
+  - If a user attempts to delete another user's post, 403 Forbidden is returned.
+  - Soft-deletes the record (sets deletedAt timestamp).
+  - Deleted posts are excluded from subsequent feeds, detail requests, and operations.
+
+Successful Response (200 OK):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "message": "Post deleted successfully"
+  }
+}
+
+Error Responses:
+  403 Forbidden:
+  {
+    "success": false,
+    "message": "You are not allowed to delete this post"
+  }
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+
+--------------------------------------------------------------------------------
+6. Toggle Like Post
+--------------------------------------------------------------------------------
+Method: POST
+Endpoint: /api/v1/posts/:id/like
+Authentication: Required (JWT Bearer)
+Required Role: job_seeker, company, admin
+
+Headers:
+  Authorization: Bearer <token>
+  Accept: application/json
+
+Path Parameters:
+  id (UUID, required): The post UUID to like or unlike
+
+Query Parameters:
+  None
+
+Request Body:
+  None
+
+Authorization & Business Rules:
+  - Server-side like toggle.
+  - If user has not liked the post: creates like record, atomically increments likesCount.
+  - If user has already liked the post: deletes like record, atomically decrements likesCount.
+  - Duplicate likes are prevented via database composite unique index (postId, userId).
+  - Returns current user like state (isLiked) and updated post total likes count (likesCount).
+
+Successful Response (200 OK - Liked):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "isLiked": true,
+    "likesCount": 13
+  }
+}
+
+Successful Response (200 OK - Unliked):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "isLiked": false,
+    "likesCount": 12
+  }
+}
+
+Error Responses:
+  401 Unauthorized:
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+
+--------------------------------------------------------------------------------
+7. Share Post
+--------------------------------------------------------------------------------
+Method: POST
+Endpoint: /api/v1/posts/:id/share
+Authentication: Optional (Public / JWT Bearer)
+Required Role: None (Public, job_seeker, company, admin)
+
+Headers:
+  Accept: application/json
+  Authorization: Bearer <token> (Optional)
+
+Path Parameters:
+  id (UUID, required): The post UUID to share
+
+Query Parameters:
+  None
+
+Request Body:
+  None
+
+Authorization & Business Rules:
+  - Public or authenticated users can share a post.
+  - Atomically increments sharesCount using database atomic increment.
+  - Returns updated sharesCount.
+  - Soft-deleted or non-existent posts return 404 Not Found.
+
+Successful Response (200 OK):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "sharesCount": 3
+  }
+}
+
+Error Responses:
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+
+--------------------------------------------------------------------------------
+8. Add Comment to Post
+--------------------------------------------------------------------------------
+Method: POST
+Endpoint: /api/v1/posts/:id/comments
+Authentication: Required (JWT Bearer)
+Required Role: job_seeker, company, admin
+
+Headers:
+  Authorization: Bearer <token>
+  Content-Type: application/json
+  Accept: application/json
+
+Path Parameters:
+  id (UUID, required): The post UUID to comment on
+
+Query Parameters:
+  None
+
+Request Body:
+{
+  "content": "Outstanding quality on this structure! How long did curing take?"
+}
+
+Authorization & Business Rules:
+  - Comment text validated: 1 to 1000 characters.
+  - Persisted in database with authorId and postId.
+  - Atomically increments commentsCount on the post.
+  - Soft-deleted posts return 404 Not Found.
+
+Successful Response (201 Created):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "id": "c1000003-9999-11ef-9c2b-c8525b68f789",
+    "postId": "7f000001-9999-11ef-9c2b-c8525b68f123",
+    "content": "Outstanding quality on this structure! How long did curing take?",
+    "createdAt": "2026-10-05T09:20:00.000Z",
+    "author": {
+      "id": "seeker-1-uuid",
+      "name": "Ravi Kumar",
+      "fullName": "Ravi Kumar",
+      "avatarUrl": null
+    }
+  }
+}
+
+Error Responses:
+  401 Unauthorized:
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
+  422 Unprocessable Entity:
+  {
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+      "content": [
+        "content must be longer than or equal to 1 characters",
+        "content must be shorter than or equal to 1000 characters"
+      ]
+    }
+  }
+
+--------------------------------------------------------------------------------
+9. List Comments for Post
+--------------------------------------------------------------------------------
+Method: GET
+Endpoint: /api/v1/posts/:id/comments
+Authentication: Optional (Public / JWT Bearer)
+Required Role: None (Public, job_seeker, company, admin)
+
+Headers:
+  Accept: application/json
+  Authorization: Bearer <token> (Optional)
+
+Path Parameters:
+  id (UUID, required): The post UUID
+
+Query Parameters:
+  page (number, optional, default: 1): Page number (minimum: 1)
+  limit (number, optional, default: 10): Comments per page (minimum: 1, maximum: 100)
+
+Request Body:
+  None
+
+Pagination Details:
+  - Returns items, total, page, limit, totalPages.
+  - Ordered newest comments first (createdAt DESC).
+
+Successful Response (200 OK):
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": "c1000003-9999-11ef-9c2b-c8525b68f789",
+        "postId": "7f000001-9999-11ef-9c2b-c8525b68f123",
+        "content": "Outstanding quality on this structure! How long did curing take?",
+        "createdAt": "2026-10-05T09:20:00.000Z",
+        "updatedAt": "2026-10-05T09:20:00.000Z",
+        "author": {
+          "id": "seeker-1-uuid",
+          "name": "Ravi Kumar",
+          "fullName": "Ravi Kumar",
+          "avatarUrl": null
+        }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
+
+Error Responses:
+  404 Not Found:
+  {
+    "success": false,
+    "message": "Post not found"
+  }
