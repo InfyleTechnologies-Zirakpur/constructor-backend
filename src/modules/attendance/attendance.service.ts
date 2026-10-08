@@ -47,6 +47,10 @@ export class AttendanceService {
     dto: CheckInDto,
     role?: string,
   ): Promise<Record<string, unknown>> {
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('User ID is required for check-in');
+    }
+
     const today = this.todayString();
 
     if (dto.siteId && role === 'site_engineer') {
@@ -75,8 +79,8 @@ export class AttendanceService {
       siteId: dto.siteId || undefined,
       date: today,
       checkInTime: new Date(),
-      checkInLatitude: dto.latitude,
-      checkInLongitude: dto.longitude,
+      checkInLatitude: dto.latitude ?? null,
+      checkInLongitude: dto.longitude ?? null,
       status: 'present',
     });
 
@@ -90,6 +94,10 @@ export class AttendanceService {
     userId: string,
     dto: CheckOutDto,
   ): Promise<Record<string, unknown>> {
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('User ID is required for check-out');
+    }
+
     const today = this.todayString();
 
     const attendance = await this.attendanceRepo.findOne({
@@ -115,8 +123,8 @@ export class AttendanceService {
     );
 
     attendance.checkOutTime = checkOutTime;
-    attendance.checkOutLatitude = dto.latitude;
-    attendance.checkOutLongitude = dto.longitude;
+    attendance.checkOutLatitude = dto.latitude ?? null;
+    attendance.checkOutLongitude = dto.longitude ?? null;
     attendance.totalMinutes = totalMinutes;
     attendance.overtimeMinutes = overtimeMinutes;
 
@@ -194,6 +202,49 @@ export class AttendanceService {
         days: totalDays,
         overtime: this.formatDuration(totalOvertimeMinutes),
       },
+    };
+  }
+
+  // ─── GET TODAY ATTENDANCE ─────────────────────────
+
+  async getToday(
+    userId: string,
+    role?: string,
+    targetUserId?: string,
+  ): Promise<Record<string, unknown> | null> {
+    const today = this.todayString();
+    const effectiveUserId =
+      (role === 'admin' || role === 'contractor') && targetUserId
+        ? targetUserId
+        : userId;
+
+    const attendance = await this.attendanceRepo.findOne({
+      where: { userId: effectiveUserId, date: today },
+      relations: { site: true },
+    });
+
+    if (!attendance) {
+      return null;
+    }
+
+    return this.formatAttendanceResponse(attendance);
+  }
+
+  // ─── GET ATTENDANCE SUMMARY ───────────────────────
+
+  async getSummary(
+    userId: string,
+    role: string,
+    month?: string,
+    siteId?: string,
+  ) {
+    const listResult = await this.list(userId, role, month, siteId);
+    return {
+      days: listResult.summary.days,
+      totalDays: listResult.summary.days,
+      overtime: listResult.summary.overtime,
+      summary: listResult.summary,
+      items: listResult.items,
     };
   }
 

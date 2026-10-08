@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { DailyReport } from './entities/daily-report.entity.js';
 import { ReportExport } from './entities/report-export.entity.js';
@@ -1635,9 +1635,7 @@ export class ReportsService {
       return [p];
     }
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: { userId },
-      });
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
       if (!contractor) return [];
       return this.projectRepo.find({ where: { contractorId: contractor.id } });
     }
@@ -1655,9 +1653,7 @@ export class ReportsService {
     if (!project) throw new NotFoundException('Project not found');
 
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: { userId },
-      });
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
       if (!contractor || project.contractorId !== contractor.id) {
         throw new ForbiddenException('You do not have access to this project');
       }
@@ -1674,6 +1670,16 @@ export class ReportsService {
   ): Promise<void> {
     if (role === 'admin') return;
 
+    // 1. Verify site existence
+    const site = await this.siteRepo.findOne({
+      where: { id: siteId },
+      relations: { project: true },
+    });
+    if (!site) {
+      throw new NotFoundException('Project site not found');
+    }
+
+    // 2. Site Engineer access: active assignment required
     if (role === 'site_engineer') {
       const assignment = await this.assignmentRepo.findOne({
         where: { siteId, userId, isActive: true },
@@ -1682,26 +1688,34 @@ export class ReportsService {
         throw new ForbiddenException('You are not assigned to this site');
       }
     } else if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: { userId },
-      });
-      if (!contractor)
-        throw new ForbiddenException('Contractor profile not found');
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      if (!contractor) throw new ForbiddenException('Contractor profile not found');
 
       const project = await this.projectRepo
         .createQueryBuilder('p')
         .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
         .where('ps.id = :siteId', { siteId })
-        .andWhere('p."contractorId" = :contractorId', {
-          contractorId: contractor.id,
-        })
+        .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
         .getOne();
 
-      if (!project) {
-        throw new ForbiddenException('You do not have access to this site');
+        if (ownedProject) {
+          return;
+        }
       }
-    } else {
-      throw new ForbiddenException('Access denied to this site');
+
+      // Check if contractor is assigned to this site
+      const assignment = await this.assignmentRepo.findOne({
+        where: { siteId, userId, isActive: true },
+      });
+      if (assignment) {
+        return;
+      }
+
+      throw new ForbiddenException(
+        'You do not have access to this site. This site belongs to a different project or contractor organization.',
+      );
     }
+
+    throw new ForbiddenException('Access denied to this site');
   }
 }

@@ -19,6 +19,7 @@ import { Application } from '../../applications/entities/application.entity.js';
 import { AttendanceService } from '../../attendance/attendance.service.js';
 import { MaterialsService } from '../../materials/materials.service.js';
 import { ExpensesService } from '../../expenses/expenses.service.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -335,6 +336,12 @@ describe('ReportsService', () => {
             getSiteExpenseCost: vi.fn().mockResolvedValue(1000),
           },
         },
+        {
+          provide: NotificationsService,
+          useValue: {
+            notify: vi.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
@@ -575,6 +582,104 @@ describe('ReportsService', () => {
       );
       expect(exp.siteId).toBe('site-1');
       expect(exp.totalAmount).toBe(5000);
+    });
+
+    it('should allow admin to access site progress report', async () => {
+      const progress = await service.getSiteProgressReport(
+        'site-1',
+        'admin-1',
+        'admin',
+        {},
+      );
+      expect(progress.siteId).toBe('site-1');
+      expect(progress.currentProgressPercentage).toBe(0);
+      expect(progress.progressCurve).toEqual([]);
+    });
+
+    it('should allow authorized contractor (project owner) to access site progress report', async () => {
+      const progress = await service.getSiteProgressReport(
+        'site-1',
+        'user-c',
+        'contractor',
+        {},
+      );
+      expect(progress.siteId).toBe('site-1');
+    });
+
+    it('should allow contractor assigned to site to access site progress report', async () => {
+      projectRepo.findOne.mockResolvedValueOnce({
+        id: 'proj-other',
+        contractorId: 'other-contractor',
+      });
+      assignmentRepo.findOne.mockResolvedValueOnce({
+        id: 'ass-1',
+        siteId: 'site-1',
+        userId: 'user-c2',
+        isActive: true,
+      });
+
+      const progress = await service.getSiteProgressReport(
+        'site-1',
+        'user-c2',
+        'contractor',
+        {},
+      );
+      expect(progress.siteId).toBe('site-1');
+    });
+
+    it('should block unauthorized contractor from site progress report with 403 Forbidden', async () => {
+      contractorRepo.findOne.mockResolvedValueOnce({
+        id: 'c-unauth',
+        userId: 'unauth-user',
+      });
+      projectRepo.findOne.mockResolvedValueOnce({
+        id: 'proj-other',
+        contractorId: 'different-c',
+      });
+      projectRepo.createQueryBuilder.mockReturnValueOnce({
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(null),
+      });
+      assignmentRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.getSiteProgressReport(
+          'site-1',
+          'unauth-user',
+          'contractor',
+          {},
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow assigned site engineer to access site progress report', async () => {
+      assignmentRepo.findOne.mockResolvedValueOnce({
+        id: 'ass-1',
+        siteId: 'site-1',
+        userId: 'eng-1',
+        isActive: true,
+      });
+      const progress = await service.getSiteProgressReport(
+        'site-1',
+        'eng-1',
+        'site_engineer',
+        {},
+      );
+      expect(progress.siteId).toBe('site-1');
+    });
+
+    it('should block unassigned site engineer from site progress report with 403 Forbidden', async () => {
+      assignmentRepo.findOne.mockResolvedValueOnce(null);
+      await expect(
+        service.getSiteProgressReport(
+          'site-1',
+          'eng-unassigned',
+          'site_engineer',
+          {},
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
