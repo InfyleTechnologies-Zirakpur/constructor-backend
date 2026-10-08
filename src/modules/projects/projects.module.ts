@@ -7,7 +7,10 @@ import { Contractor } from '../contractors/entities/contractor.entity.js';
 import { AuthorizationModule } from '../authorization/authorization.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Project, Contractor]), AuthorizationModule],
+  imports: [
+    TypeOrmModule.forFeature([Project, Contractor]),
+    AuthorizationModule,
+  ],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

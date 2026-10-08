@@ -23,4 +23,3 @@ import { Project } from '../projects/entities/project.entity.js';
   exports: [AttendanceService],
 })
 export class AttendanceModule {}
-

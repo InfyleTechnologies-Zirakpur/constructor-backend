@@ -80,3 +80,15 @@ construcniton-firebase-adminsdk-fbsvc-fd08a3eb4b.json
 firebase.js
 BACKEND_AUDIT.md
 Calculator.md
+
+# AI & Agent artifacts
+.gemini/
+.agents/
+.agent/
+.gsd/
+
+# GitHub workflows
+.github/workflows/
+
+# Adapters
+adapters/

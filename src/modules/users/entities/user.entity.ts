@@ -90,8 +90,10 @@ export class User {
     type: 'int',
     default: 0,
     transformer: {
-      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
-      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+      to: (value: number) =>
+        typeof value === 'number' ? value : Number(value) || 0,
+      from: (value: any) =>
+        value !== null && value !== undefined ? Number(value) : 0,
     },
   })
   loginCount: number;
@@ -100,8 +102,10 @@ export class User {
     type: 'int',
     default: 0,
     transformer: {
-      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
-      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+      to: (value: number) =>
+        typeof value === 'number' ? value : Number(value) || 0,
+      from: (value: any) =>
+        value !== null && value !== undefined ? Number(value) : 0,
     },
   })
   failedLoginAttempts: number;
@@ -113,8 +117,10 @@ export class User {
     type: 'int',
     default: 0,
     transformer: {
-      to: (value: number) => (typeof value === 'number' ? value : Number(value) || 0),
-      from: (value: any) => (value !== null && value !== undefined ? Number(value) : 0),
+      to: (value: number) =>
+        typeof value === 'number' ? value : Number(value) || 0,
+      from: (value: any) =>
+        value !== null && value !== undefined ? Number(value) : 0,
     },
   })
   tokenVersion: number; // bump to invalidate all old JWTs — single-session

@@ -1,6 +1,9 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { User } from '../users/entities/user.entity.js';
-import { can, type Capability } from '../../common/permissions/permission-matrix.js';
+import {
+  can,
+  type Capability,
+} from '../../common/permissions/permission-matrix.js';
 
 @Injectable()
 export class AuthorizationService {

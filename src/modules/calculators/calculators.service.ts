@@ -1,19 +1,146 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+
+export const CALC_CONSTANTS = {
+  concreteDryFactor: 1.54,
+  mortarDryFactor: 1.27, // brick mortar, plaster, cement, sand, mortar
+  cementBagM3: 0.0347,
+  cementBagKg: 50,
+  sandDensityKgM3: 1550,
+  aggregateDensityKgM3: 1450,
+  m3ToCft: 35.3147,
+  steelKgPerM3Concrete: 80,
+  bricksPerM3: 500,
+  mortarWetFraction: 0.27,
+  defaultConcreteRatio: '1:2:4',
+  defaultPlasterRatio: '1:4',
+  defaultBrickMortarRatio: '1:6',
+  maxWastagePercent: 20,
+  gradeRatios: {
+    M5: '1:5:10',
+    'M7.5': '1:4:8',
+    M10: '1:3:6',
+    M15: '1:2:4',
+    M20: '1:1.5:3',
+    M25: '1:1:2',
+  },
+  flooringAdhesiveKgPerM2: 4.5,
+  paintLitresPerGallon: 3.785,
+  steelDensityKgM3: 7850,
+} as const;
+
+export type ConcreteGrade = keyof typeof CALC_CONSTANTS.gradeRatios;
+
+export interface ConcreteOptions {
+  quantity?: number;
+  grade?: string;
+  mixRatio?: string;
+  wastagePercent?: number;
+  truckCapacityM3?: number;
+  steelKgPerM3?: number;
+}
+
+export interface AggregateOptions {
+  grade?: string;
+  mixRatio?: string;
+  wastagePercent?: number;
+}
+
+export interface MortarOptions {
+  mixRatio?: string;
+  wastagePercent?: number;
+}
+
+export interface BrickOptions {
+  mortarRatio?: string;
+  wastagePercent?: number;
+}
 
 @Injectable()
 export class CalculatorsService {
   /**
-   * Helper to parse a mix ratio string like "1:2:4" into number array.
+   * Helper to parse a mix ratio string like "1:2:4" or "1:4" into parts and sum.
+   * Requires expectedParts positive finite numbers, else throws BadRequestException.
    */
-  private parseRatio(ratioStr: string): number[] {
-    return ratioStr.split(':').map(Number);
+  private parseRatio(
+    ratio: string,
+    expectedParts: number,
+  ): { parts: number[]; sum: number } {
+    if (!ratio || typeof ratio !== 'string') {
+      throw new BadRequestException('Invalid mixRatio');
+    }
+    const rawParts = ratio.split(':');
+    if (rawParts.length !== expectedParts) {
+      throw new BadRequestException('Invalid mixRatio');
+    }
+    const parts = rawParts.map(Number);
+    for (const p of parts) {
+      if (isNaN(p) || !isFinite(p) || p <= 0) {
+        throw new BadRequestException('Invalid mixRatio');
+      }
+    }
+    const sum = parts.reduce((s, c) => s + c, 0);
+    if (isNaN(sum) || sum <= 0) {
+      throw new BadRequestException('Invalid mixRatio');
+    }
+    return { parts, sum };
   }
 
   /**
-   * Helper to compute dry volume (add 54% for wet-to-dry conversion).
+   * Helper to resolve concrete mix ratio from grade or mixRatio string.
+   * Grade wins over mixRatio if provided.
    */
-  private dryVolume(wetVolume: number): number {
-    return wetVolume * 1.54;
+  private resolveConcreteRatio(grade?: string, mixRatio?: string): string {
+    if (grade && grade in CALC_CONSTANTS.gradeRatios) {
+      return CALC_CONSTANTS.gradeRatios[grade as ConcreteGrade];
+    }
+    return mixRatio ?? CALC_CONSTANTS.defaultConcreteRatio;
+  }
+
+  /**
+   * Helper to compute dry volume using specified conversion factor.
+   */
+  private dryVolume(wetVolume: number, factor: number): number {
+    return wetVolume * factor;
+  }
+
+  /**
+   * Helper to apply wastage percentage.
+   */
+  private withWastage(value: number, wastagePercent: number): number {
+    return value * (1 + wastagePercent / 100);
+  }
+
+  /**
+   * Helper to convert cement volume in m3 to bags.
+   */
+  private cementBags(cementM3: number): number {
+    return cementM3 / CALC_CONSTANTS.cementBagM3;
+  }
+
+  /**
+   * Helper to calculate truck delivery requirements.
+   * Minimum 1 truck when volume > 0.
+   */
+  private trucks(volumeM3: number, capacityM3: number) {
+    if (volumeM3 <= 0 || capacityM3 <= 0) {
+      return {
+        count: 0,
+        utilisationPercent: 0,
+        lastTruckFillPercent: 0,
+      };
+    }
+    const count = Math.max(1, Math.ceil(volumeM3 / capacityM3 - 1e-9));
+    const utilisationPercent = this.round(
+      (volumeM3 / (count * capacityM3)) * 100,
+    );
+    const lastTruckFillPercent = this.round(
+      ((volumeM3 - (count - 1) * capacityM3) / capacityM3) * 100,
+    );
+    return {
+      count,
+      utilisationPercent,
+      lastTruckFillPercent,
+    };
   }
 
   // ─── 1. CONCRETE CALCULATOR ─────────────────────────
@@ -22,77 +149,128 @@ export class CalculatorsService {
     length: number,
     breadth: number,
     height: number,
-    mixRatio = '1:2:4',
+    opts?: ConcreteOptions,
   ) {
-    const wetVolume = length * breadth * height;
-    const dryVol = this.dryVolume(wetVolume);
-    const parts = this.parseRatio(mixRatio);
-    const totalRatio = parts.reduce((s, c) => s + c, 0) || 1;
+    const quantity = opts?.quantity ?? 1;
+    const wastagePercent = opts?.wastagePercent ?? 0;
+    const steelKgPerM3 =
+      opts?.steelKgPerM3 ?? CALC_CONSTANTS.steelKgPerM3Concrete;
+    const grade = opts?.grade;
+    const truckCapacityM3 = opts?.truckCapacityM3;
 
-    const cementVolume = (parts[0] / totalRatio) * dryVol;
-    const sandVolume = (parts[1] / totalRatio) * dryVol;
-    const aggregateVolume = (parts[2] / totalRatio) * dryVol;
+    const wet = length * breadth * height * quantity;
+    const dry = this.dryVolume(wet, CALC_CONSTANTS.concreteDryFactor);
+    const ratioStr = this.resolveConcreteRatio(grade, opts?.mixRatio);
+    const { parts, sum } = this.parseRatio(ratioStr, 3);
 
-    // 1 bag cement = 0.0347 m³
-    const cementBags = cementVolume / 0.0347;
-    // Sand: 1 m³ ≈ 1550 kg
-    const sandKg = sandVolume * 1550;
-    // Aggregate: 1 m³ ≈ 1450 kg
-    const aggregateKg = aggregateVolume * 1450;
+    const cementM3 = (dry * parts[0]) / sum;
+    const cementBags = this.withWastage(
+      this.cementBags(cementM3),
+      wastagePercent,
+    );
+    const sandM3 = this.withWastage((dry * parts[1]) / sum, wastagePercent);
+    const aggM3 = this.withWastage((dry * parts[2]) / sum, wastagePercent);
 
-    return {
-      wetVolumeM3: this.round(wetVolume),
-      dryVolumeM3: this.round(dryVol),
+    const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+    const sandCft = sandM3 * CALC_CONSTANTS.m3ToCft;
+    const aggKg = aggM3 * CALC_CONSTANTS.aggregateDensityKgM3;
+    const aggCft = aggM3 * CALC_CONSTANTS.m3ToCft;
+    const steelKg = wet * steelKgPerM3;
+
+    const response: Record<string, unknown> = {
+      wetVolumeM3: this.round(wet),
+      dryVolumeM3: this.round(dry),
       cementBags: this.round(cementBags),
       sandKg: this.round(sandKg),
-      sandCft: this.round(sandVolume * 35.3147),
-      aggregateKg: this.round(aggregateKg),
-      aggregateCft: this.round(aggregateVolume * 35.3147),
-      mixRatio,
+      sandCft: this.round(sandCft),
+      aggregateKg: this.round(aggKg),
+      aggregateCft: this.round(aggCft),
+      mixRatio: ratioStr,
+      ...(grade ? { grade } : {}),
+      quantity,
+      wastagePercent,
+      sandM3: this.round(sandM3),
+      aggregateM3: this.round(aggM3),
+      steelKg: this.round(steelKg),
+      constantsUsed: {
+        concreteDryFactor: CALC_CONSTANTS.concreteDryFactor,
+        cementBagM3: CALC_CONSTANTS.cementBagM3,
+        steelKgPerM3,
+        wastagePercent,
+      },
     };
+
+    if (truckCapacityM3 !== undefined && truckCapacityM3 > 0) {
+      response.trucks = {
+        capacityM3: truckCapacityM3,
+        sand: this.trucks(sandM3, truckCapacityM3),
+        aggregate: this.trucks(aggM3, truckCapacityM3),
+      };
+    }
+
+    return response;
   }
 
   // ─── 2. CEMENT CALCULATOR ──────────────────────────
 
-  calculateCement(area: number, thickness: number, mixRatio = '1:4') {
-    const wetVolume = area * thickness;
-    const dryVol = this.dryVolume(wetVolume);
-    const parts = this.parseRatio(mixRatio);
-    const totalRatio = parts.reduce((s, c) => s + c, 0) || 1;
+  calculateCement(area: number, thickness: number, opts?: MortarOptions) {
+    const mixRatio = opts?.mixRatio ?? CALC_CONSTANTS.defaultPlasterRatio;
+    const wastagePercent = opts?.wastagePercent ?? 0;
 
-    const cementVolume = (parts[0] / totalRatio) * dryVol;
-    const cementBags = cementVolume / 0.0347;
-    const cementKg = cementBags * 50;
+    const wet = area * thickness;
+    const dry = this.dryVolume(wet, CALC_CONSTANTS.mortarDryFactor);
+    const { parts, sum } = this.parseRatio(mixRatio, 2);
+
+    const cementM3 = (dry * parts[0]) / sum;
+    const cementBags = this.withWastage(
+      this.cementBags(cementM3),
+      wastagePercent,
+    );
+    const cementKg = cementBags * CALC_CONSTANTS.cementBagKg;
 
     return {
-      wetVolumeM3: this.round(wetVolume),
-      dryVolumeM3: this.round(dryVol),
+      wetVolumeM3: this.round(wet),
+      dryVolumeM3: this.round(dry),
       cementBags: this.round(cementBags),
       cementKg: this.round(cementKg),
       mixRatio,
+      wastagePercent,
+      constantsUsed: {
+        mortarDryFactor: CALC_CONSTANTS.mortarDryFactor,
+        cementBagM3: CALC_CONSTANTS.cementBagM3,
+        cementBagKg: CALC_CONSTANTS.cementBagKg,
+        wastagePercent,
+      },
     };
   }
 
   // ─── 3. SAND CALCULATOR ───────────────────────────
 
-  calculateSand(area: number, thickness: number, mixRatio = '1:4') {
-    const wetVolume = area * thickness;
-    const dryVol = this.dryVolume(wetVolume);
-    const parts = this.parseRatio(mixRatio);
-    const totalRatio = parts.reduce((s, c) => s + c, 0) || 1;
+  calculateSand(area: number, thickness: number, opts?: MortarOptions) {
+    const mixRatio = opts?.mixRatio ?? CALC_CONSTANTS.defaultPlasterRatio;
+    const wastagePercent = opts?.wastagePercent ?? 0;
 
-    // Sand is the second part in the ratio
-    const sandPart = parts.length > 1 ? parts[1] : parts[0];
-    const sandVolume = (sandPart / totalRatio) * dryVol;
-    const sandKg = sandVolume * 1550;
+    const wet = area * thickness;
+    const dry = this.dryVolume(wet, CALC_CONSTANTS.mortarDryFactor);
+    const { parts, sum } = this.parseRatio(mixRatio, 2);
+
+    const sandM3 = this.withWastage((dry * parts[1]) / sum, wastagePercent);
+    const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+    const sandCft = sandM3 * CALC_CONSTANTS.m3ToCft;
 
     return {
-      wetVolumeM3: this.round(wetVolume),
-      dryVolumeM3: this.round(dryVol),
-      sandVolumeM3: this.round(sandVolume),
+      wetVolumeM3: this.round(wet),
+      dryVolumeM3: this.round(dry),
+      sandVolumeM3: this.round(sandM3),
       sandKg: this.round(sandKg),
-      sandCft: this.round(sandVolume * 35.3147),
+      sandCft: this.round(sandCft),
       mixRatio,
+      wastagePercent,
+      constantsUsed: {
+        mortarDryFactor: CALC_CONSTANTS.mortarDryFactor,
+        sandDensityKgM3: CALC_CONSTANTS.sandDensityKgM3,
+        wastagePercent,
+      },
     };
   }
 
@@ -102,25 +280,34 @@ export class CalculatorsService {
     length: number,
     breadth: number,
     height: number,
-    mixRatio = '1:2:4',
+    opts?: AggregateOptions,
   ) {
-    const wetVolume = length * breadth * height;
-    const dryVol = this.dryVolume(wetVolume);
-    const parts = this.parseRatio(mixRatio);
-    const totalRatio = parts.reduce((s, c) => s + c, 0) || 1;
+    const grade = opts?.grade;
+    const wastagePercent = opts?.wastagePercent ?? 0;
 
-    // Aggregate is the third part in the ratio
-    const aggPart = parts.length > 2 ? parts[2] : parts[0];
-    const aggVolume = (aggPart / totalRatio) * dryVol;
-    const aggKg = aggVolume * 1450;
+    const wet = length * breadth * height;
+    const dry = this.dryVolume(wet, CALC_CONSTANTS.concreteDryFactor);
+    const ratioStr = this.resolveConcreteRatio(grade, opts?.mixRatio);
+    const { parts, sum } = this.parseRatio(ratioStr, 3);
+
+    const aggM3 = this.withWastage((dry * parts[2]) / sum, wastagePercent);
+    const aggKg = aggM3 * CALC_CONSTANTS.aggregateDensityKgM3;
+    const aggCft = aggM3 * CALC_CONSTANTS.m3ToCft;
 
     return {
-      wetVolumeM3: this.round(wetVolume),
-      dryVolumeM3: this.round(dryVol),
-      aggregateVolumeM3: this.round(aggVolume),
+      wetVolumeM3: this.round(wet),
+      dryVolumeM3: this.round(dry),
+      aggregateVolumeM3: this.round(aggM3),
       aggregateKg: this.round(aggKg),
-      aggregateCft: this.round(aggVolume * 35.3147),
-      mixRatio,
+      aggregateCft: this.round(aggCft),
+      mixRatio: ratioStr,
+      ...(grade ? { grade } : {}),
+      wastagePercent,
+      constantsUsed: {
+        concreteDryFactor: CALC_CONSTANTS.concreteDryFactor,
+        aggregateDensityKgM3: CALC_CONSTANTS.aggregateDensityKgM3,
+        wastagePercent,
+      },
     };
   }
 
@@ -130,42 +317,51 @@ export class CalculatorsService {
     wallLength: number,
     wallHeight: number,
     wallThickness: number,
-    mortarThickness = 0.01,
+    opts?: BrickOptions,
   ) {
-    // Standard Indian brick: 230mm x 115mm x 75mm
-    const brickL = 0.23;
-    const brickH = 0.075;
-    const brickW = 0.115;
+    const mortarRatio =
+      opts?.mortarRatio ?? CALC_CONSTANTS.defaultBrickMortarRatio;
+    const wastagePercent = opts?.wastagePercent ?? 5;
 
-    const wallVolume = wallLength * wallHeight * wallThickness;
+    const wallVol = wallLength * wallHeight * wallThickness;
+    const bricksWithoutWastage = Math.ceil(
+      wallVol * CALC_CONSTANTS.bricksPerM3 - 1e-9,
+    );
+    const numberOfBricks = Math.ceil(
+      wallVol * CALC_CONSTANTS.bricksPerM3 * (1 + wastagePercent / 100) - 1e-9,
+    );
 
-    // Volume of one brick with mortar
-    const brickWithMortar =
-      (brickL + mortarThickness) *
-      (brickH + mortarThickness) *
-      (brickW + mortarThickness);
+    const mortarWet = wallVol * CALC_CONSTANTS.mortarWetFraction;
+    const mortarDry = this.dryVolume(mortarWet, CALC_CONSTANTS.mortarDryFactor);
 
-    const numberOfBricks = Math.ceil(wallVolume / brickWithMortar);
-
-    // Add 5% wastage
-    const bricksWithWastage = Math.ceil(numberOfBricks * 1.05);
-
-    // Mortar volume = wall volume - (number of bricks × single brick volume)
-    const totalBrickVolume = numberOfBricks * (brickL * brickH * brickW);
-    const mortarVolume = wallVolume - totalBrickVolume;
-    const dryMortar = this.dryVolume(Math.max(0, mortarVolume));
-
-    // Cement for mortar (1:6 ratio default)
-    const cementForMortar = dryMortar / 7;
-    const cementBags = cementForMortar / 0.0347;
+    const { parts, sum } = this.parseRatio(mortarRatio, 2);
+    const cementM3 = (mortarDry * parts[0]) / sum;
+    const cementBags = this.withWastage(
+      this.cementBags(cementM3),
+      wastagePercent,
+    );
+    const sandM3 = this.withWastage(
+      (mortarDry * parts[1]) / sum,
+      wastagePercent,
+    );
 
     return {
-      wallVolumeM3: this.round(wallVolume),
-      numberOfBricks: bricksWithWastage,
-      bricksWithoutWastage: numberOfBricks,
-      mortarVolumeM3: this.round(Math.max(0, mortarVolume)),
+      wallVolumeM3: this.round(wallVol),
+      numberOfBricks,
+      bricksWithoutWastage,
+      mortarVolumeM3: this.round(mortarWet),
+      mortarDryM3: this.round(mortarDry),
       cementBags: this.round(cementBags),
-      sandVolumeM3: this.round(dryMortar - cementForMortar),
+      sandVolumeM3: this.round(sandM3),
+      wastagePercent,
+      mortarRatio,
+      constantsUsed: {
+        bricksPerM3: CALC_CONSTANTS.bricksPerM3,
+        mortarWetFraction: CALC_CONSTANTS.mortarWetFraction,
+        mortarDryFactor: CALC_CONSTANTS.mortarDryFactor,
+        cementBagM3: CALC_CONSTANTS.cementBagM3,
+        wastagePercent,
+      },
     };
   }
 
@@ -181,7 +377,7 @@ export class CalculatorsService {
     // Steel % of concrete volume
     const steelVolumeM3 = concreteVolume * (steelPercentage / 100);
     // Steel density: 7850 kg/m³
-    const steelWeightKg = steelVolumeM3 * 7850;
+    const steelWeightKg = steelVolumeM3 * CALC_CONSTANTS.steelDensityKgM3;
 
     return {
       concreteVolumeM3: this.round(concreteVolume),
@@ -217,8 +413,10 @@ export class CalculatorsService {
     const wastageCount = Math.ceil(tilesRequired * (wastagePercent / 100));
     const tilesWithWastage = tilesRequired + wastageCount;
 
-    // Adhesive: ~4-5 kg per sq. meter of area
-    const adhesiveKg = this.round(roomArea * 4.5);
+    // Adhesive: ~4.5 kg per sq. meter of area
+    const adhesiveKg = this.round(
+      roomArea * CALC_CONSTANTS.flooringAdhesiveKgPerM2,
+    );
 
     return {
       roomAreaSqM: this.round(roomArea),
@@ -241,33 +439,50 @@ export class CalculatorsService {
       coats,
       coveragePerLitre,
       paintLitres: this.round(paintLitres),
-      paintGallons: this.round(paintLitres / 3.785),
+      paintGallons: this.round(
+        paintLitres / CALC_CONSTANTS.paintLitresPerGallon,
+      ),
     };
   }
 
   // ─── 9. PLASTER CALCULATOR ────────────────────────
 
-  calculatePlaster(area: number, thickness: number, mixRatio = '1:4') {
-    const wetVolume = area * thickness;
-    const dryVol = this.dryVolume(wetVolume);
-    const parts = this.parseRatio(mixRatio);
-    const totalRatio = parts.reduce((s, c) => s + c, 0) || 1;
+  calculatePlaster(area: number, thickness: number, opts?: MortarOptions) {
+    const mixRatio = opts?.mixRatio ?? CALC_CONSTANTS.defaultPlasterRatio;
+    const wastagePercent = opts?.wastagePercent ?? 0;
 
-    const cementVolume = (parts[0] / totalRatio) * dryVol;
-    const sandVolume = (parts[1] / totalRatio) * dryVol;
+    const wet = area * thickness;
+    const dry = this.dryVolume(wet, CALC_CONSTANTS.mortarDryFactor);
+    const { parts, sum } = this.parseRatio(mixRatio, 2);
 
-    const cementBags = cementVolume / 0.0347;
-    const sandKg = sandVolume * 1550;
+    const cementM3 = (dry * parts[0]) / sum;
+    const cementBags = this.withWastage(
+      this.cementBags(cementM3),
+      wastagePercent,
+    );
+    const cementKg = cementBags * CALC_CONSTANTS.cementBagKg;
+
+    const sandM3 = this.withWastage((dry * parts[1]) / sum, wastagePercent);
+    const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+    const sandCft = sandM3 * CALC_CONSTANTS.m3ToCft;
 
     return {
-      wetVolumeM3: this.round(wetVolume),
-      dryVolumeM3: this.round(dryVol),
+      wetVolumeM3: this.round(wet),
+      dryVolumeM3: this.round(dry),
       cementBags: this.round(cementBags),
-      cementKg: this.round(cementBags * 50),
-      sandVolumeM3: this.round(sandVolume),
+      cementKg: this.round(cementKg),
+      sandVolumeM3: this.round(sandM3),
       sandKg: this.round(sandKg),
-      sandCft: this.round(sandVolume * 35.3147),
+      sandCft: this.round(sandCft),
       mixRatio,
+      wastagePercent,
+      constantsUsed: {
+        mortarDryFactor: CALC_CONSTANTS.mortarDryFactor,
+        cementBagM3: CALC_CONSTANTS.cementBagM3,
+        cementBagKg: CALC_CONSTANTS.cementBagKg,
+        sandDensityKgM3: CALC_CONSTANTS.sandDensityKgM3,
+        wastagePercent,
+      },
     };
   }
 
@@ -278,81 +493,93 @@ export class CalculatorsService {
     thickness = 0.15,
     materialType = 'concrete',
   ) {
-    const volume = area * thickness;
-    const dryVol = this.dryVolume(volume);
+    const wetVolume = area * thickness;
 
-    let result: Record<string, unknown> = {
-      areaSqM: this.round(area),
-      thickness,
-      materialType,
-      wetVolumeM3: this.round(volume),
-      dryVolumeM3: this.round(dryVol),
-    };
+    if (materialType === 'concrete') {
+      const dryVol = this.dryVolume(
+        wetVolume,
+        CALC_CONSTANTS.concreteDryFactor,
+      );
+      const { parts, sum } = this.parseRatio(
+        CALC_CONSTANTS.defaultConcreteRatio,
+        3,
+      );
+      const cementM3 = (dryVol * parts[0]) / sum;
+      const cementBags = this.cementBags(cementM3);
+      const sandM3 = (dryVol * parts[1]) / sum;
+      const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+      const aggM3 = (dryVol * parts[2]) / sum;
+      const aggKg = aggM3 * CALC_CONSTANTS.aggregateDensityKgM3;
 
-    switch (materialType) {
-      case 'concrete':
-        result = {
-          ...result,
-          ...this.concreteBreakdown(dryVol, '1:2:4'),
-        };
-        break;
-      case 'plaster':
-        result = {
-          ...result,
-          ...this.mortarBreakdown(dryVol, '1:4'),
-        };
-        break;
-      case 'mortar':
-        result = {
-          ...result,
-          ...this.mortarBreakdown(dryVol, '1:6'),
-        };
-        break;
-      default:
-        result = {
-          ...result,
-          ...this.concreteBreakdown(dryVol, '1:2:4'),
-        };
+      return {
+        areaSqM: this.round(area),
+        thickness,
+        materialType,
+        wetVolumeM3: this.round(wetVolume),
+        dryVolumeM3: this.round(dryVol),
+        cementBags: this.round(cementBags),
+        sandM3: this.round(sandM3),
+        sandKg: this.round(sandKg),
+        aggregateM3: this.round(aggM3),
+        aggregateKg: this.round(aggKg),
+        mixRatio: CALC_CONSTANTS.defaultConcreteRatio,
+      };
     }
 
-    return result;
+    if (materialType === 'plaster') {
+      const dryVol = this.dryVolume(wetVolume, CALC_CONSTANTS.mortarDryFactor);
+      const { parts, sum } = this.parseRatio(
+        CALC_CONSTANTS.defaultPlasterRatio,
+        2,
+      );
+      const cementM3 = (dryVol * parts[0]) / sum;
+      const cementBags = this.cementBags(cementM3);
+      const sandM3 = (dryVol * parts[1]) / sum;
+      const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+
+      return {
+        areaSqM: this.round(area),
+        thickness,
+        materialType,
+        wetVolumeM3: this.round(wetVolume),
+        dryVolumeM3: this.round(dryVol),
+        cementBags: this.round(cementBags),
+        cementKg: this.round(cementBags * CALC_CONSTANTS.cementBagKg),
+        sandM3: this.round(sandM3),
+        sandKg: this.round(sandKg),
+        mixRatio: CALC_CONSTANTS.defaultPlasterRatio,
+      };
+    }
+
+    if (materialType === 'mortar') {
+      const dryVol = this.dryVolume(wetVolume, CALC_CONSTANTS.mortarDryFactor);
+      const { parts, sum } = this.parseRatio(
+        CALC_CONSTANTS.defaultBrickMortarRatio,
+        2,
+      );
+      const cementM3 = (dryVol * parts[0]) / sum;
+      const cementBags = this.cementBags(cementM3);
+      const sandM3 = (dryVol * parts[1]) / sum;
+      const sandKg = sandM3 * CALC_CONSTANTS.sandDensityKgM3;
+
+      return {
+        areaSqM: this.round(area),
+        thickness,
+        materialType,
+        wetVolumeM3: this.round(wetVolume),
+        dryVolumeM3: this.round(dryVol),
+        cementBags: this.round(cementBags),
+        cementKg: this.round(cementBags * CALC_CONSTANTS.cementBagKg),
+        sandM3: this.round(sandM3),
+        sandKg: this.round(sandKg),
+        mixRatio: CALC_CONSTANTS.defaultBrickMortarRatio,
+      };
+    }
+
+    throw new BadRequestException(`Unsupported materialType: ${materialType}`);
   }
 
   // ─── HELPERS ──────────────────────────────────────
-
-  private concreteBreakdown(dryVol: number, mixRatio: string) {
-    const parts = this.parseRatio(mixRatio);
-    const total = parts.reduce((s, c) => s + c, 0) || 1;
-
-    const cementVol = (parts[0] / total) * dryVol;
-    const sandVol = (parts[1] / total) * dryVol;
-    const aggVol = (parts[2] / total) * dryVol;
-
-    return {
-      cementBags: this.round(cementVol / 0.0347),
-      sandM3: this.round(sandVol),
-      sandKg: this.round(sandVol * 1550),
-      aggregateM3: this.round(aggVol),
-      aggregateKg: this.round(aggVol * 1450),
-      mixRatio,
-    };
-  }
-
-  private mortarBreakdown(dryVol: number, mixRatio: string) {
-    const parts = this.parseRatio(mixRatio);
-    const total = parts.reduce((s, c) => s + c, 0) || 1;
-
-    const cementVol = (parts[0] / total) * dryVol;
-    const sandVol = (parts[1] / total) * dryVol;
-
-    return {
-      cementBags: this.round(cementVol / 0.0347),
-      cementKg: this.round((cementVol / 0.0347) * 50),
-      sandM3: this.round(sandVol),
-      sandKg: this.round(sandVol * 1550),
-      mixRatio,
-    };
-  }
 
   private round(value: number): number {
     return Number(value.toFixed(2));

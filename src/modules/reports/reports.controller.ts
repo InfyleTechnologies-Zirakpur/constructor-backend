@@ -498,10 +498,7 @@ export class ReportsController {
    */
   @Post('reports/export')
   @Roles('admin', 'contractor', 'site_engineer')
-  async createExport(
-    @Req() req: any,
-    @Body() dto: CreateExportDto,
-  ) {
+  async createExport(@Req() req: any, @Body() dto: CreateExportDto) {
     const exportJob = await this.reportsService.createExport(
       req.user.id,
       req.user.role,
@@ -529,11 +526,11 @@ export class ReportsController {
    */
   @Get('reports/export/:id')
   @Roles('admin', 'contractor', 'site_engineer')
-  async getExportStatus(
-    @Req() req: any,
-    @Param('id') id: string,
-  ) {
-    const exportJob = await this.reportsService.getExportStatus(id, req.user.id);
+  async getExportStatus(@Req() req: any, @Param('id') id: string) {
+    const exportJob = await this.reportsService.getExportStatus(
+      id,
+      req.user.id,
+    );
     return { success: true, data: exportJob };
   }
 
@@ -549,7 +546,10 @@ export class ReportsController {
   ) {
     const file = await this.reportsService.downloadExport(id, req.user.id);
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName}"`,
+    );
     return res.send(file.content);
   }
 
@@ -573,7 +573,10 @@ export class ReportsController {
       req.user.role,
     );
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName}"`,
+    );
     return res.send(file.content);
   }
 }

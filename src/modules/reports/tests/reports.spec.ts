@@ -125,11 +125,23 @@ describe('ReportsService', () => {
           provide: getRepositoryToken(Contractor),
           useValue: {
             findOne: vi.fn().mockResolvedValue({ id: 'c-1', userId: 'user-c' }),
-            find: vi.fn().mockResolvedValue([{ id: 'c-1', userId: 'user-c', companyName: 'BuildCorp' }]),
+            find: vi
+              .fn()
+              .mockResolvedValue([
+                { id: 'c-1', userId: 'user-c', companyName: 'BuildCorp' },
+              ]),
             createQueryBuilder: vi.fn(() => ({
               leftJoinAndSelect: vi.fn().mockReturnThis(),
               where: vi.fn().mockReturnThis(),
-              getMany: vi.fn().mockResolvedValue([{ id: 'c-1', companyName: 'BuildCorp', verificationStatus: 'verified' }]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  {
+                    id: 'c-1',
+                    companyName: 'BuildCorp',
+                    verificationStatus: 'verified',
+                  },
+                ]),
             })),
           },
         },
@@ -142,9 +154,16 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               take: vi.fn().mockReturnThis(),
-              getMany: vi.fn().mockResolvedValue([
-                { id: 'att-1', totalMinutes: 480, overtimeMinutes: 60, date: '2026-09-09' },
-              ]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  {
+                    id: 'att-1',
+                    totalMinutes: 480,
+                    overtimeMinutes: 60,
+                    date: '2026-09-09',
+                  },
+                ]),
             })),
           },
         },
@@ -158,9 +177,18 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 50000 }),
-              getMany: vi.fn().mockResolvedValue([
-                { id: 'lr-1', headcount: 10, category: 'Mason', totalCost: 8000, overtimeHours: 2, date: '2026-09-09' },
-              ]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  {
+                    id: 'lr-1',
+                    headcount: 10,
+                    category: 'Mason',
+                    totalCost: 8000,
+                    overtimeHours: 2,
+                    date: '2026-09-09',
+                  },
+                ]),
             })),
           },
         },
@@ -181,9 +209,18 @@ describe('ReportsService', () => {
               leftJoinAndSelect: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 75000 }),
-              getMany: vi.fn().mockResolvedValue([
-                { id: 'mt-1', type: 'purchase', totalCost: 35000, supplier: 'Ambuja', date: '2026-09-09', material: { category: 'cement' } },
-              ]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  {
+                    id: 'mt-1',
+                    type: 'purchase',
+                    totalCost: 35000,
+                    supplier: 'Ambuja',
+                    date: '2026-09-09',
+                    material: { category: 'cement' },
+                  },
+                ]),
             })),
           },
         },
@@ -197,9 +234,16 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 12000 }),
-              getMany: vi.fn().mockResolvedValue([
-                { id: 'exp-1', amount: 5000, category: 'Travel', date: '2026-09-09' },
-              ]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  {
+                    id: 'exp-1',
+                    amount: 5000,
+                    category: 'Travel',
+                    date: '2026-09-09',
+                  },
+                ]),
             })),
           },
         },
@@ -208,33 +252,63 @@ describe('ReportsService', () => {
           useValue: {
             find: vi.fn().mockResolvedValue([
               { id: 'u-1', role: 'admin', isActive: true, isBlocked: false },
-              { id: 'u-2', role: 'contractor', isActive: true, isBlocked: false },
+              {
+                id: 'u-2',
+                role: 'contractor',
+                isActive: true,
+                isBlocked: false,
+              },
             ]),
           },
         },
         {
           provide: getRepositoryToken(Company),
           useValue: {
-            find: vi.fn().mockResolvedValue([
-              { id: 'comp-1', name: 'Acme Infra', verificationStatus: 'verified', userId: 'user-comp' },
-            ]),
-            findOne: vi.fn().mockResolvedValue({ id: 'comp-1', name: 'Acme Infra', userId: 'user-comp' }),
+            find: vi
+              .fn()
+              .mockResolvedValue([
+                {
+                  id: 'comp-1',
+                  name: 'Acme Infra',
+                  verificationStatus: 'verified',
+                  userId: 'user-comp',
+                },
+              ]),
+            findOne: vi
+              .fn()
+              .mockResolvedValue({
+                id: 'comp-1',
+                name: 'Acme Infra',
+                userId: 'user-comp',
+              }),
           },
         },
         {
           provide: getRepositoryToken(Job),
           useValue: {
-            find: vi.fn().mockResolvedValue([{ id: 'job-1', title: 'Mason', status: 'published' }]),
+            find: vi
+              .fn()
+              .mockResolvedValue([
+                { id: 'job-1', title: 'Mason', status: 'published' },
+              ]),
             createQueryBuilder: vi.fn(() => ({
               where: vi.fn().mockReturnThis(),
-              getMany: vi.fn().mockResolvedValue([{ id: 'job-1', title: 'Mason', status: 'published' }]),
+              getMany: vi
+                .fn()
+                .mockResolvedValue([
+                  { id: 'job-1', title: 'Mason', status: 'published' },
+                ]),
             })),
           },
         },
         {
           provide: getRepositoryToken(Application),
           useValue: {
-            find: vi.fn().mockResolvedValue([{ id: 'app-1', status: 'pending', jobId: 'job-1' }]),
+            find: vi
+              .fn()
+              .mockResolvedValue([
+                { id: 'app-1', status: 'pending', jobId: 'job-1' },
+              ]),
           },
         },
         {
@@ -247,8 +321,12 @@ describe('ReportsService', () => {
           provide: MaterialsService,
           useValue: {
             getSiteMaterialCost: vi.fn().mockResolvedValue(3000),
-            getStock: vi.fn().mockResolvedValue([{ material: 'Cement', currentStock: 50 }]),
-            listTransactions: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+            getStock: vi
+              .fn()
+              .mockResolvedValue([{ material: 'Cement', currentStock: 50 }]),
+            listTransactions: vi
+              .fn()
+              .mockResolvedValue({ items: [], total: 0 }),
           },
         },
         {
@@ -381,7 +459,11 @@ describe('ReportsService', () => {
 
   describe('Project Reports', () => {
     it('should return project summary with aggregated metrics', async () => {
-      const summary = await service.getProjectSummary('proj-1', 'admin-1', 'admin');
+      const summary = await service.getProjectSummary(
+        'proj-1',
+        'admin-1',
+        'admin',
+      );
       expect(summary.project.name).toBe('Skyline Towers');
       expect(summary.costs.labourCost).toBe(50000);
       expect(summary.costs.materialCost).toBe(75000);
@@ -390,41 +472,69 @@ describe('ReportsService', () => {
     });
 
     it('should return project progress overview and site breakdown', async () => {
-      const progress = await service.getProjectProgress('proj-1', 'admin-1', 'admin');
+      const progress = await service.getProjectProgress(
+        'proj-1',
+        'admin-1',
+        'admin',
+      );
       expect(progress.projectId).toBe('proj-1');
       expect(progress.sites).toHaveLength(1);
       expect(progress.sites[0].siteName).toBe('Tower A');
     });
 
     it('should return project cost breakdown vs budget', async () => {
-      const cost = await service.getProjectCost('proj-1', 'admin-1', 'admin', {});
+      const cost = await service.getProjectCost(
+        'proj-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(cost.budget).toBe(5000000);
       expect(cost.totalSpent).toBe(137000); // 50k + 75k + 12k
       expect(cost.remainingBudget).toBe(5000000 - 137000);
     });
 
     it('should return project labour cost breakdown by trades', async () => {
-      const labour = await service.getProjectLabourCost('proj-1', 'admin-1', 'admin', {});
+      const labour = await service.getProjectLabourCost(
+        'proj-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(labour.trades).toHaveLength(1);
       expect(labour.trades[0].trade).toBe('Mason');
       expect(labour.totalWorkers).toBe(10);
     });
 
     it('should return project material cost breakdown by categories', async () => {
-      const mat = await service.getProjectMaterialCost('proj-1', 'admin-1', 'admin', {});
+      const mat = await service.getProjectMaterialCost(
+        'proj-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(mat.totalPurchases).toBe(35000);
       expect(mat.categories).toHaveLength(1);
       expect(mat.topSuppliers[0].supplier).toBe('Ambuja');
     });
 
     it('should return project expenses summary', async () => {
-      const exp = await service.getProjectExpenses('proj-1', 'admin-1', 'admin', {});
+      const exp = await service.getProjectExpenses(
+        'proj-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(exp.totalExpenses).toBe(5000);
       expect(exp.categories[0].category).toBe('Travel');
     });
 
     it('should return project profitability calculations', async () => {
-      const prof = await service.getProjectProfitability('proj-1', 'admin-1', 'admin');
+      const prof = await service.getProjectProfitability(
+        'proj-1',
+        'admin-1',
+        'admin',
+      );
       expect(prof.financials.budget).toBe(5000000);
       expect(prof.profitability.status).toBe('profitable');
     });
@@ -434,20 +544,35 @@ describe('ReportsService', () => {
 
   describe('Site Reports', () => {
     it('should return site labour report', async () => {
-      const labour = await service.getSiteLabourReport('site-1', 'admin-1', 'admin', {});
+      const labour = await service.getSiteLabourReport(
+        'site-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(labour.siteId).toBe('site-1');
       expect(labour.totalWorkers).toBe(10);
       expect(labour.records).toHaveLength(1);
     });
 
     it('should return site material stock and transactions', async () => {
-      const mat = await service.getSiteMaterialReport('site-1', 'admin-1', 'admin', {});
+      const mat = await service.getSiteMaterialReport(
+        'site-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(mat.siteId).toBe('site-1');
       expect(mat.currentStock).toHaveLength(1);
     });
 
     it('should return site expenses report', async () => {
-      const exp = await service.getSiteExpenseReport('site-1', 'admin-1', 'admin', {});
+      const exp = await service.getSiteExpenseReport(
+        'site-1',
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(exp.siteId).toBe('site-1');
       expect(exp.totalAmount).toBe(5000);
     });
@@ -477,13 +602,21 @@ describe('ReportsService', () => {
     });
 
     it('should return financial cost cross-project report', async () => {
-      const costs = await service.getFinancialCostReport('admin-1', 'admin', {});
+      const costs = await service.getFinancialCostReport(
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(costs.totalBudget).toBe(5000000);
       expect(costs.totalSpent).toBe(137000);
     });
 
     it('should return financial profitability cross-project report', async () => {
-      const prof = await service.getFinancialProfitabilityReport('admin-1', 'admin', {});
+      const prof = await service.getFinancialProfitabilityReport(
+        'admin-1',
+        'admin',
+        {},
+      );
       expect(prof.portfolioFinancials.totalRevenue).toBe(6000000);
       expect(prof.projectRankings).toHaveLength(1);
     });

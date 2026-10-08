@@ -31,6 +31,8 @@ export function can(capability: Capability, role: string): boolean {
 export function assertCan(capability: Capability, role: string): void {
   if (!can(capability, role)) {
     // Keep message same as RolesGuard for consistency
-    throw new Error(`Access restricted to roles: ${PermissionMatrix[capability].join(', ')}`);
+    throw new Error(
+      `Access restricted to roles: ${PermissionMatrix[capability].join(', ')}`,
+    );
   }
 }

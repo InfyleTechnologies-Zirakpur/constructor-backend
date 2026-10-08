@@ -283,12 +283,30 @@ export class ReportsService {
     query.orderBy('r.date', 'DESC');
     const reports = await query.getMany();
 
-    const totalLabourCost = reports.reduce((sum, r) => sum + Number(r.totalLabourCost), 0);
-    const totalMaterialCost = reports.reduce((sum, r) => sum + Number(r.totalMaterialCost), 0);
-    const totalExpense = reports.reduce((sum, r) => sum + Number(r.totalExpense), 0);
-    const totalDailyCost = reports.reduce((sum, r) => sum + Number(r.totalDailyCost), 0);
-    const totalRevenue = reports.reduce((sum, r) => sum + Number(r.dailyRevenue), 0);
-    const totalProfit = reports.reduce((sum, r) => sum + Number(r.estimatedProfit), 0);
+    const totalLabourCost = reports.reduce(
+      (sum, r) => sum + Number(r.totalLabourCost),
+      0,
+    );
+    const totalMaterialCost = reports.reduce(
+      (sum, r) => sum + Number(r.totalMaterialCost),
+      0,
+    );
+    const totalExpense = reports.reduce(
+      (sum, r) => sum + Number(r.totalExpense),
+      0,
+    );
+    const totalDailyCost = reports.reduce(
+      (sum, r) => sum + Number(r.totalDailyCost),
+      0,
+    );
+    const totalRevenue = reports.reduce(
+      (sum, r) => sum + Number(r.dailyRevenue),
+      0,
+    );
+    const totalProfit = reports.reduce(
+      (sum, r) => sum + Number(r.estimatedProfit),
+      0,
+    );
 
     return {
       items: reports,
@@ -316,51 +334,66 @@ export class ReportsService {
     const sites = await this.siteRepo.find({ where: { projectId } });
     const siteIds = sites.map((s) => s.id);
 
-    const [labourAgg, materialAgg, expenseAgg, dailyReports] = await Promise.all([
-      siteIds.length > 0
-        ? this.labourRepo
-            .createQueryBuilder('lr')
-            .select('COALESCE(SUM(lr.totalCost), 0)', 'total')
-            .where('lr.siteId IN (:...siteIds)', { siteIds })
-            .getRawOne()
-        : { total: 0 },
-      siteIds.length > 0
-        ? this.materialTxnRepo
-            .createQueryBuilder('mt')
-            .select('COALESCE(SUM(mt.totalCost), 0)', 'total')
-            .where('mt.siteId IN (:...siteIds)', { siteIds })
-            .andWhere('mt.type = :type', { type: 'purchase' })
-            .getRawOne()
-        : { total: 0 },
-      siteIds.length > 0
-        ? this.expenseRepo
-            .createQueryBuilder('e')
-            .select('COALESCE(SUM(e.amount), 0)', 'total')
-            .where('e.siteId IN (:...siteIds)', { siteIds })
-            .getRawOne()
-        : { total: 0 },
-      siteIds.length > 0
-        ? this.reportRepo.find({
-            where: { siteId: In(siteIds) },
-            order: { date: 'DESC' },
-          })
-        : [],
-    ]);
+    const [labourAgg, materialAgg, expenseAgg, dailyReports] =
+      await Promise.all([
+        siteIds.length > 0
+          ? this.labourRepo
+              .createQueryBuilder('lr')
+              .select('COALESCE(SUM(lr.totalCost), 0)', 'total')
+              .where('lr.siteId IN (:...siteIds)', { siteIds })
+              .getRawOne()
+          : { total: 0 },
+        siteIds.length > 0
+          ? this.materialTxnRepo
+              .createQueryBuilder('mt')
+              .select('COALESCE(SUM(mt.totalCost), 0)', 'total')
+              .where('mt.siteId IN (:...siteIds)', { siteIds })
+              .andWhere('mt.type = :type', { type: 'purchase' })
+              .getRawOne()
+          : { total: 0 },
+        siteIds.length > 0
+          ? this.expenseRepo
+              .createQueryBuilder('e')
+              .select('COALESCE(SUM(e.amount), 0)', 'total')
+              .where('e.siteId IN (:...siteIds)', { siteIds })
+              .getRawOne()
+          : { total: 0 },
+        siteIds.length > 0
+          ? this.reportRepo.find({
+              where: { siteId: In(siteIds) },
+              order: { date: 'DESC' },
+            })
+          : [],
+      ]);
 
     const totalLabourCost = Number(labourAgg?.total ?? 0);
     const totalMaterialCost = Number(materialAgg?.total ?? 0);
     const totalExpenseCost = Number(expenseAgg?.total ?? 0);
-    const otherCosts = dailyReports.reduce((s, r) => s + Number(r.otherCosts ?? 0), 0);
-    const totalProjectCost = totalLabourCost + totalMaterialCost + totalExpenseCost + otherCosts;
+    const otherCosts = dailyReports.reduce(
+      (s, r) => s + Number(r.otherCosts ?? 0),
+      0,
+    );
+    const totalProjectCost =
+      totalLabourCost + totalMaterialCost + totalExpenseCost + otherCosts;
 
-    const reportedRevenue = dailyReports.reduce((s, r) => s + Number(r.dailyRevenue ?? 0), 0);
-    const totalRevenue = reportedRevenue > 0 ? reportedRevenue : Number(project.contractValue || project.budget);
+    const reportedRevenue = dailyReports.reduce(
+      (s, r) => s + Number(r.dailyRevenue ?? 0),
+      0,
+    );
+    const totalRevenue =
+      reportedRevenue > 0
+        ? reportedRevenue
+        : Number(project.contractValue || project.budget);
     const netProfit = totalRevenue - totalProjectCost;
-    const profitMarginPercentage = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+    const profitMarginPercentage =
+      totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     const avgProgress =
       dailyReports.length > 0
-        ? dailyReports.reduce((sum, r) => sum + Number(r.progressPercentage ?? 0), 0) / dailyReports.length
+        ? dailyReports.reduce(
+            (sum, r) => sum + Number(r.progressPercentage ?? 0),
+            0,
+          ) / dailyReports.length
         : 0;
 
     return {
@@ -407,13 +440,14 @@ export class ReportsService {
     const sites = await this.siteRepo.find({ where: { projectId } });
     const siteIds = sites.map((s) => s.id);
 
-    const reports = siteIds.length > 0
-      ? await this.reportRepo.find({
-          where: { siteId: In(siteIds) },
-          order: { date: 'DESC' },
-          relations: { site: true },
-        })
-      : [];
+    const reports =
+      siteIds.length > 0
+        ? await this.reportRepo.find({
+            where: { siteId: In(siteIds) },
+            order: { date: 'DESC' },
+            relations: { site: true },
+          })
+        : [];
 
     const siteProgress = sites.map((site) => {
       const siteReports = reports.filter((r) => r.siteId === site.id);
@@ -432,7 +466,10 @@ export class ReportsService {
 
     const overallProgress =
       siteProgress.length > 0
-        ? siteProgress.reduce((sum, s) => sum + s.currentProgressPercentage, 0) / siteProgress.length
+        ? siteProgress.reduce(
+            (sum, s) => sum + s.currentProgressPercentage,
+            0,
+          ) / siteProgress.length
         : 0;
 
     const timeline = reports.slice(0, 30).map((r) => ({
@@ -492,9 +529,15 @@ export class ReportsService {
       .where('e.siteId IN (:...siteIds)', { siteIds });
 
     if (query.startDate) {
-      labourQb.andWhere('lr.date >= :startDate', { startDate: query.startDate });
-      materialQb.andWhere('mt.date >= :startDate', { startDate: query.startDate });
-      expenseQb.andWhere('e.date >= :startDate', { startDate: query.startDate });
+      labourQb.andWhere('lr.date >= :startDate', {
+        startDate: query.startDate,
+      });
+      materialQb.andWhere('mt.date >= :startDate', {
+        startDate: query.startDate,
+      });
+      expenseQb.andWhere('e.date >= :startDate', {
+        startDate: query.startDate,
+      });
     }
     if (query.endDate) {
       labourQb.andWhere('lr.date <= :endDate', { endDate: query.endDate });
@@ -514,7 +557,8 @@ export class ReportsService {
     const totalSpent = labourCost + materialCost + expenseCost;
     const budget = Number(project.budget);
     const remainingBudget = budget - totalSpent;
-    const budgetUtilizationPercentage = budget > 0 ? (totalSpent / budget) * 100 : 0;
+    const budgetUtilizationPercentage =
+      budget > 0 ? (totalSpent / budget) * 100 : 0;
 
     return {
       projectId: project.id,
@@ -522,7 +566,9 @@ export class ReportsService {
       budget,
       totalSpent: Number(totalSpent.toFixed(2)),
       remainingBudget: Number(remainingBudget.toFixed(2)),
-      budgetUtilizationPercentage: Number(budgetUtilizationPercentage.toFixed(2)),
+      budgetUtilizationPercentage: Number(
+        budgetUtilizationPercentage.toFixed(2),
+      ),
       breakdown: {
         labour: Number(labourCost.toFixed(2)),
         materials: Number(materialCost.toFixed(2)),
@@ -545,24 +591,38 @@ export class ReportsService {
     const siteIds = query.siteId ? [query.siteId] : sites.map((s) => s.id);
 
     if (siteIds.length === 0) {
-      return { totalCost: 0, totalWorkers: 0, totalOvertimeHours: 0, trades: [], dailyTrend: [] };
+      return {
+        totalCost: 0,
+        totalWorkers: 0,
+        totalOvertimeHours: 0,
+        trades: [],
+        dailyTrend: [],
+      };
     }
 
     const qb = this.labourRepo
       .createQueryBuilder('lr')
       .where('lr.siteId IN (:...siteIds)', { siteIds });
 
-    if (query.startDate) qb.andWhere('lr.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('lr.date <= :endDate', { endDate: query.endDate });
+    if (query.startDate)
+      qb.andWhere('lr.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('lr.date <= :endDate', { endDate: query.endDate });
 
     const records = await qb.orderBy('lr.date', 'DESC').getMany();
 
     const totalCost = records.reduce((s, r) => s + Number(r.totalCost), 0);
     const totalWorkers = records.reduce((s, r) => s + Number(r.headcount), 0);
-    const totalOvertimeHours = records.reduce((s, r) => s + Number(r.overtimeHours ?? 0), 0);
+    const totalOvertimeHours = records.reduce(
+      (s, r) => s + Number(r.overtimeHours ?? 0),
+      0,
+    );
 
     // Group by category/trade
-    const tradeMap = new Map<string, { headcount: number; totalCost: number }>();
+    const tradeMap = new Map<
+      string,
+      { headcount: number; totalCost: number }
+    >();
     for (const r of records) {
       const cat = r.category || 'General';
       const existing = tradeMap.get(cat) ?? { headcount: 0, totalCost: 0 };
@@ -575,7 +635,10 @@ export class ReportsService {
       trade,
       headcount: data.headcount,
       totalCost: Number(data.totalCost.toFixed(2)),
-      percentage: totalCost > 0 ? Number(((data.totalCost / totalCost) * 100).toFixed(1)) : 0,
+      percentage:
+        totalCost > 0
+          ? Number(((data.totalCost / totalCost) * 100).toFixed(1))
+          : 0,
     }));
 
     return {
@@ -602,7 +665,12 @@ export class ReportsService {
     const siteIds = query.siteId ? [query.siteId] : sites.map((s) => s.id);
 
     if (siteIds.length === 0) {
-      return { totalPurchases: 0, totalConsumption: 0, categories: [], topSuppliers: [] };
+      return {
+        totalPurchases: 0,
+        totalConsumption: 0,
+        categories: [],
+        topSuppliers: [],
+      };
     }
 
     const qb = this.materialTxnRepo
@@ -610,9 +678,12 @@ export class ReportsService {
       .leftJoinAndSelect('mt.material', 'mat')
       .where('mt.siteId IN (:...siteIds)', { siteIds });
 
-    if (query.startDate) qb.andWhere('mt.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('mt.date <= :endDate', { endDate: query.endDate });
-    if (query.category) qb.andWhere('mat.category = :cat', { cat: query.category });
+    if (query.startDate)
+      qb.andWhere('mt.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('mt.date <= :endDate', { endDate: query.endDate });
+    if (query.category)
+      qb.andWhere('mat.category = :cat', { cat: query.category });
 
     const txns = await qb.orderBy('mt.date', 'DESC').getMany();
 
@@ -626,7 +697,10 @@ export class ReportsService {
       if (t.type === 'purchase') {
         totalPurchases += cost;
         if (t.supplier) {
-          supplierMap.set(t.supplier, (supplierMap.get(t.supplier) ?? 0) + cost);
+          supplierMap.set(
+            t.supplier,
+            (supplierMap.get(t.supplier) ?? 0) + cost,
+          );
         }
       } else if (t.type === 'consumption') {
         totalConsumption += cost;
@@ -635,15 +709,20 @@ export class ReportsService {
       catMap.set(cat, (catMap.get(cat) ?? 0) + cost);
     }
 
-    const categories = Array.from(catMap.entries()).map(([category, amount]) => ({
-      category,
-      totalCost: Number(amount.toFixed(2)),
-    }));
+    const categories = Array.from(catMap.entries()).map(
+      ([category, amount]) => ({
+        category,
+        totalCost: Number(amount.toFixed(2)),
+      }),
+    );
 
     const topSuppliers = Array.from(supplierMap.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([supplier, amount]) => ({ supplier, totalAmount: Number(amount.toFixed(2)) }));
+      .map(([supplier, amount]) => ({
+        supplier,
+        totalAmount: Number(amount.toFixed(2)),
+      }));
 
     return {
       projectId,
@@ -676,9 +755,12 @@ export class ReportsService {
       .createQueryBuilder('e')
       .where('e.siteId IN (:...siteIds)', { siteIds });
 
-    if (query.startDate) qb.andWhere('e.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('e.date <= :endDate', { endDate: query.endDate });
-    if (query.category) qb.andWhere('e.category = :category', { category: query.category });
+    if (query.startDate)
+      qb.andWhere('e.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('e.date <= :endDate', { endDate: query.endDate });
+    if (query.category)
+      qb.andWhere('e.category = :category', { category: query.category });
 
     const expenses = await qb.orderBy('e.date', 'DESC').getMany();
 
@@ -695,7 +777,10 @@ export class ReportsService {
       category,
       totalAmount: Number(data.total.toFixed(2)),
       count: data.count,
-      percentage: totalExpenses > 0 ? Number(((data.total / totalExpenses) * 100).toFixed(1)) : 0,
+      percentage:
+        totalExpenses > 0
+          ? Number(((data.total / totalExpenses) * 100).toFixed(1))
+          : 0,
     }));
 
     return {
@@ -709,7 +794,11 @@ export class ReportsService {
   /**
    * Profitability: Contract Value vs Budget vs Actual Cost, Net Margin.
    */
-  async getProjectProfitability(projectId: string, userId: string, role: string) {
+  async getProjectProfitability(
+    projectId: string,
+    userId: string,
+    role: string,
+  ) {
     const summary = await this.getProjectSummary(projectId, userId, role);
     const budget = summary.project.budget;
     const contractValue = summary.project.contractValue || budget;
@@ -753,7 +842,12 @@ export class ReportsService {
     const siteIds = query.siteId ? [query.siteId] : sites.map((s) => s.id);
 
     if (siteIds.length === 0) {
-      return { items: [], total: 0, page: query.page ?? 1, limit: query.limit ?? 20 };
+      return {
+        items: [],
+        total: 0,
+        page: query.page ?? 1,
+        limit: query.limit ?? 20,
+      };
     }
 
     const page = query.page ?? 1;
@@ -764,9 +858,12 @@ export class ReportsService {
       .leftJoinAndSelect('r.site', 'site')
       .where('r.siteId IN (:...siteIds)', { siteIds });
 
-    if (query.status) qb.andWhere('r.status = :status', { status: query.status });
-    if (query.startDate) qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
+    if (query.status)
+      qb.andWhere('r.status = :status', { status: query.status });
+    if (query.startDate)
+      qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
 
     qb.orderBy('r.date', 'DESC')
       .skip((page - 1) * limit)
@@ -798,9 +895,12 @@ export class ReportsService {
       .createQueryBuilder('r')
       .where('r.siteId = :siteId', { siteId });
 
-    if (query.status) qb.andWhere('r.status = :status', { status: query.status });
-    if (query.startDate) qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
+    if (query.status)
+      qb.andWhere('r.status = :status', { status: query.status });
+    if (query.startDate)
+      qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
 
     qb.orderBy('r.date', 'DESC')
       .skip((page - 1) * limit)
@@ -825,15 +925,24 @@ export class ReportsService {
       .createQueryBuilder('lr')
       .where('lr.siteId = :siteId', { siteId });
 
-    if (query.startDate) qb.andWhere('lr.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('lr.date <= :endDate', { endDate: query.endDate });
-    if (query.trade) qb.andWhere('lr.category = :trade', { trade: query.trade });
+    if (query.startDate)
+      qb.andWhere('lr.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('lr.date <= :endDate', { endDate: query.endDate });
+    if (query.trade)
+      qb.andWhere('lr.category = :trade', { trade: query.trade });
 
     const records = await qb.orderBy('lr.date', 'DESC').getMany();
 
-    const totalLabourCost = records.reduce((s, r) => s + Number(r.totalCost), 0);
+    const totalLabourCost = records.reduce(
+      (s, r) => s + Number(r.totalCost),
+      0,
+    );
     const totalWorkers = records.reduce((s, r) => s + Number(r.headcount), 0);
-    const totalOvertimeHours = records.reduce((s, r) => s + Number(r.overtimeHours ?? 0), 0);
+    const totalOvertimeHours = records.reduce(
+      (s, r) => s + Number(r.overtimeHours ?? 0),
+      0,
+    );
 
     return {
       siteId,
@@ -883,9 +992,12 @@ export class ReportsService {
       .createQueryBuilder('e')
       .where('e.siteId = :siteId', { siteId });
 
-    if (query.startDate) qb.andWhere('e.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('e.date <= :endDate', { endDate: query.endDate });
-    if (query.category) qb.andWhere('e.category = :category', { category: query.category });
+    if (query.startDate)
+      qb.andWhere('e.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('e.date <= :endDate', { endDate: query.endDate });
+    if (query.category)
+      qb.andWhere('e.category = :category', { category: query.category });
 
     const expenses = await qb.orderBy('e.date', 'DESC').getMany();
     const totalAmount = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
@@ -908,8 +1020,10 @@ export class ReportsService {
       .createQueryBuilder('r')
       .where('r.siteId = :siteId', { siteId });
 
-    if (query.startDate) qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
+    if (query.startDate)
+      qb.andWhere('r.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('r.date <= :endDate', { endDate: query.endDate });
 
     const reports = await qb.orderBy('r.date', 'ASC').getMany();
 
@@ -943,26 +1057,43 @@ export class ReportsService {
   ) {
     let siteIds: string[] | undefined;
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
       if (!contractor) return { totalRecords: 0, totalHours: 0, items: [] };
-      const projects = await this.projectRepo.find({ where: { contractorId: contractor.id } });
+      const projects = await this.projectRepo.find({
+        where: { contractorId: contractor.id },
+      });
       const pIds = projects.map((p) => p.id);
-      if (pIds.length === 0) return { totalRecords: 0, totalHours: 0, items: [] };
-      const sites = await this.siteRepo.find({ where: { projectId: In(pIds) } });
+      if (pIds.length === 0)
+        return { totalRecords: 0, totalHours: 0, items: [] };
+      const sites = await this.siteRepo.find({
+        where: { projectId: In(pIds) },
+      });
       siteIds = sites.map((s) => s.id);
-      if (siteIds.length === 0) return { totalRecords: 0, totalHours: 0, items: [] };
+      if (siteIds.length === 0)
+        return { totalRecords: 0, totalHours: 0, items: [] };
     }
 
     const qb = this.attendanceRepo.createQueryBuilder('att');
     if (siteIds) qb.where('att.siteId IN (:...siteIds)', { siteIds });
-    if (query.siteId) qb.andWhere('att.siteId = :siteId', { siteId: query.siteId });
-    if (query.startDate) qb.andWhere('att.date >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('att.date <= :endDate', { endDate: query.endDate });
+    if (query.siteId)
+      qb.andWhere('att.siteId = :siteId', { siteId: query.siteId });
+    if (query.startDate)
+      qb.andWhere('att.date >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('att.date <= :endDate', { endDate: query.endDate });
 
     const records = await qb.orderBy('att.date', 'DESC').take(100).getMany();
 
-    const totalMinutes = records.reduce((s, r) => s + Number(r.totalMinutes ?? 0), 0);
-    const totalOvertimeMinutes = records.reduce((s, r) => s + Number(r.overtimeMinutes ?? 0), 0);
+    const totalMinutes = records.reduce(
+      (s, r) => s + Number(r.totalMinutes ?? 0),
+      0,
+    );
+    const totalOvertimeMinutes = records.reduce(
+      (s, r) => s + Number(r.overtimeMinutes ?? 0),
+      0,
+    );
 
     return {
       totalCheckIns: records.length,
@@ -999,8 +1130,11 @@ export class ReportsService {
         companyName: c.companyName,
         verificationStatus: c.verificationStatus,
         totalProjects: cProjects.length,
-        activeProjects: cProjects.filter((p) => p.status === 'active' || p.status === 'in_progress').length,
-        completedProjects: cProjects.filter((p) => p.status === 'completed').length,
+        activeProjects: cProjects.filter(
+          (p) => p.status === 'active' || p.status === 'in_progress',
+        ).length,
+        completedProjects: cProjects.filter((p) => p.status === 'completed')
+          .length,
         portfolioBudget: Number(totalBudget.toFixed(2)),
       };
     });
@@ -1011,7 +1145,11 @@ export class ReportsService {
   /**
    * Operational User Report: User distribution and activity.
    */
-  async getUserReport(userId: string, role: string, query: OperationalReportQueryDto) {
+  async getUserReport(
+    userId: string,
+    role: string,
+    query: OperationalReportQueryDto,
+  ) {
     if (role !== 'admin') throw new ForbiddenException('Admin role required');
 
     const users = await this.userRepo.find();
@@ -1036,16 +1174,23 @@ export class ReportsService {
   /**
    * Operational Company Report: Verification and job posting metrics.
    */
-  async getCompanyReport(userId: string, role: string, query: OperationalReportQueryDto) {
+  async getCompanyReport(
+    userId: string,
+    role: string,
+    query: OperationalReportQueryDto,
+  ) {
     if (role !== 'admin') throw new ForbiddenException('Admin role required');
 
     const companies = await this.companyRepo.find();
     const jobs = await this.jobRepo.find();
 
     const verificationBreakdown = {
-      pending: companies.filter((c) => c.verificationStatus === 'pending').length,
-      verified: companies.filter((c) => c.verificationStatus === 'verified').length,
-      rejected: companies.filter((c) => c.verificationStatus === 'rejected').length,
+      pending: companies.filter((c) => c.verificationStatus === 'pending')
+        .length,
+      verified: companies.filter((c) => c.verificationStatus === 'verified')
+        .length,
+      rejected: companies.filter((c) => c.verificationStatus === 'rejected')
+        .length,
     };
 
     return {
@@ -1079,7 +1224,9 @@ export class ReportsService {
       return { totalJobs: 0, totalApplications: 0, funnel: {} };
     }
 
-    const apps = await this.applicationRepo.find({ where: { jobId: In(jobIds) } });
+    const apps = await this.applicationRepo.find({
+      where: { jobId: In(jobIds) },
+    });
 
     const funnel: Record<string, number> = {};
     for (const a of apps) {
@@ -1089,7 +1236,8 @@ export class ReportsService {
     return {
       totalJobs: jobs.length,
       totalApplications: apps.length,
-      averageApplicationsPerJob: jobs.length > 0 ? Number((apps.length / jobs.length).toFixed(1)) : 0,
+      averageApplicationsPerJob:
+        jobs.length > 0 ? Number((apps.length / jobs.length).toFixed(1)) : 0,
       funnel,
     };
   }
@@ -1106,7 +1254,11 @@ export class ReportsService {
     role: string,
     query: FinancialReportQueryDto,
   ) {
-    const projects = await this.getAccessibleProjects(userId, role, query.projectId);
+    const projects = await this.getAccessibleProjects(
+      userId,
+      role,
+      query.projectId,
+    );
     const projectSummaries = await Promise.all(
       projects.map((p) => this.getProjectCost(p.id, userId, role, query)),
     );
@@ -1131,15 +1283,26 @@ export class ReportsService {
     role: string,
     query: FinancialReportQueryDto,
   ) {
-    const projects = await this.getAccessibleProjects(userId, role, query.projectId);
+    const projects = await this.getAccessibleProjects(
+      userId,
+      role,
+      query.projectId,
+    );
     const summaries = await Promise.all(
       projects.map((p) => this.getProjectProfitability(p.id, userId, role)),
     );
 
-    const totalRevenue = summaries.reduce((s, p) => s + p.profitability.recognizedRevenue, 0);
-    const totalCost = summaries.reduce((s, p) => s + p.financials.actualCost, 0);
+    const totalRevenue = summaries.reduce(
+      (s, p) => s + p.profitability.recognizedRevenue,
+      0,
+    );
+    const totalCost = summaries.reduce(
+      (s, p) => s + p.financials.actualCost,
+      0,
+    );
     const netProfit = totalRevenue - totalCost;
-    const overallMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+    const overallMargin =
+      totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     return {
       portfolioFinancials: {
@@ -1148,7 +1311,9 @@ export class ReportsService {
         netProfit: Number(netProfit.toFixed(2)),
         overallMarginPercentage: Number(overallMargin.toFixed(2)),
       },
-      projectRankings: summaries.sort((a, b) => b.profitability.netProfit - a.profitability.netProfit),
+      projectRankings: summaries.sort(
+        (a, b) => b.profitability.netProfit - a.profitability.netProfit,
+      ),
     };
   }
 
@@ -1159,7 +1324,11 @@ export class ReportsService {
   /**
    * Create an export job (processed asynchronously/immediately).
    */
-  async createExport(userId: string, role: string, dto: CreateExportDto): Promise<ReportExport> {
+  async createExport(
+    userId: string,
+    role: string,
+    dto: CreateExportDto,
+  ): Promise<ReportExport> {
     const exportId = randomUUID();
     const exportRecord = new ReportExport();
     exportRecord.id = exportId;
@@ -1179,7 +1348,12 @@ export class ReportsService {
 
     // Process export
     try {
-      const data = await this.generateReportData(dto.reportType, dto.filters ?? {}, userId, role);
+      const data = await this.generateReportData(
+        dto.reportType,
+        dto.filters ?? {},
+        userId,
+        role,
+      );
       const formatted = this.formatExport(data, dto.format, dto.reportType);
 
       exportRecord.status = 'completed';
@@ -1213,11 +1387,16 @@ export class ReportsService {
         order: { createdAt: 'DESC' },
       });
     } catch {
-      return Array.from(this.inMemoryExports.values()).filter((e) => e.userId === userId);
+      return Array.from(this.inMemoryExports.values()).filter(
+        (e) => e.userId === userId,
+      );
     }
   }
 
-  async getExportStatus(exportId: string, userId: string): Promise<ReportExport> {
+  async getExportStatus(
+    exportId: string,
+    userId: string,
+  ): Promise<ReportExport> {
     let exp: ReportExport | null = null;
     try {
       exp = await this.exportRepo.findOne({ where: { id: exportId } });
@@ -1226,16 +1405,24 @@ export class ReportsService {
     }
     if (!exp) exp = this.inMemoryExports.get(exportId) ?? null;
     if (!exp) throw new NotFoundException('Export job not found');
-    if (exp.userId !== userId) throw new ForbiddenException('Access denied to this export');
+    if (exp.userId !== userId)
+      throw new ForbiddenException('Access denied to this export');
     return exp;
   }
 
   async downloadExport(exportId: string, userId: string) {
     const exp = await this.getExportStatus(exportId, userId);
     if (exp.status !== 'completed') {
-      throw new BadRequestException(`Export is ${exp.status}: cannot download yet`);
+      throw new BadRequestException(
+        `Export is ${exp.status}: cannot download yet`,
+      );
     }
-    const data = await this.generateReportData(exp.reportType, exp.filters ?? {}, userId, 'admin');
+    const data = await this.generateReportData(
+      exp.reportType,
+      exp.filters ?? {},
+      userId,
+      'admin',
+    );
     const content = this.formatExport(data, exp.format as any, exp.reportType);
     return {
       fileName: exp.fileName,
@@ -1251,8 +1438,15 @@ export class ReportsService {
     userId: string,
     role: string,
   ) {
-    const validFormat = ['csv', 'excel', 'pdf'].includes(format) ? format : 'csv';
-    const data = await this.generateReportData(reportType, filters, userId, role);
+    const validFormat = ['csv', 'excel', 'pdf'].includes(format)
+      ? format
+      : 'csv';
+    const data = await this.generateReportData(
+      reportType,
+      filters,
+      userId,
+      role,
+    );
     const content = this.formatExport(data, validFormat as any, reportType);
     const ext = validFormat === 'excel' ? 'xls' : validFormat;
     const fileName = `${reportType}-${new Date().toISOString().slice(0, 10)}.${ext}`;
@@ -1280,23 +1474,53 @@ export class ReportsService {
       case 'project-cost':
         return this.getProjectCost(filters.projectId, userId, role, filters);
       case 'labour-cost':
-        return this.getProjectLabourCost(filters.projectId, userId, role, filters);
+        return this.getProjectLabourCost(
+          filters.projectId,
+          userId,
+          role,
+          filters,
+        );
       case 'material-cost':
-        return this.getProjectMaterialCost(filters.projectId, userId, role, filters);
+        return this.getProjectMaterialCost(
+          filters.projectId,
+          userId,
+          role,
+          filters,
+        );
       case 'expenses':
-        return this.getProjectExpenses(filters.projectId, userId, role, filters);
+        return this.getProjectExpenses(
+          filters.projectId,
+          userId,
+          role,
+          filters,
+        );
       case 'profitability':
         return this.getProjectProfitability(filters.projectId, userId, role);
       case 'daily-reports':
-        return this.getProjectDailyReports(filters.projectId, userId, role, filters);
+        return this.getProjectDailyReports(
+          filters.projectId,
+          userId,
+          role,
+          filters,
+        );
       case 'site-labour':
         return this.getSiteLabourReport(filters.siteId, userId, role, filters);
       case 'site-materials':
-        return this.getSiteMaterialReport(filters.siteId, userId, role, filters);
+        return this.getSiteMaterialReport(
+          filters.siteId,
+          userId,
+          role,
+          filters,
+        );
       case 'site-expenses':
         return this.getSiteExpenseReport(filters.siteId, userId, role, filters);
       case 'site-progress':
-        return this.getSiteProgressReport(filters.siteId, userId, role, filters);
+        return this.getSiteProgressReport(
+          filters.siteId,
+          userId,
+          role,
+          filters,
+        );
       case 'attendance':
         return this.getAttendanceReport(userId, role, filters);
       case 'financial-costs':
@@ -1346,7 +1570,10 @@ export class ReportsService {
       return res;
     };
     const pairs = flatten(data);
-    return ['Metric,Value', ...pairs.map(([k, v]) => `"${k}","${v ?? ''}"`)].join('\n');
+    return [
+      'Metric,Value',
+      ...pairs.map(([k, v]) => `"${k}","${v ?? ''}"`),
+    ].join('\n');
   }
 
   private convertToHtmlDocument(data: any, reportType: string): string {
@@ -1398,25 +1625,39 @@ export class ReportsService {
     }
   }
 
-  private async getAccessibleProjects(userId: string, role: string, projectId?: string): Promise<Project[]> {
+  private async getAccessibleProjects(
+    userId: string,
+    role: string,
+    projectId?: string,
+  ): Promise<Project[]> {
     if (projectId) {
       const p = await this.verifyProjectAccess(projectId, userId, role);
       return [p];
     }
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
       if (!contractor) return [];
       return this.projectRepo.find({ where: { contractorId: contractor.id } });
     }
     return this.projectRepo.find();
   }
 
-  private async verifyProjectAccess(projectId: string, userId: string, role: string): Promise<Project> {
-    const project = await this.projectRepo.findOne({ where: { id: projectId } });
+  private async verifyProjectAccess(
+    projectId: string,
+    userId: string,
+    role: string,
+  ): Promise<Project> {
+    const project = await this.projectRepo.findOne({
+      where: { id: projectId },
+    });
     if (!project) throw new NotFoundException('Project not found');
 
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
       if (!contractor || project.contractorId !== contractor.id) {
         throw new ForbiddenException('You do not have access to this project');
       }
@@ -1426,7 +1667,11 @@ export class ReportsService {
     return project;
   }
 
-  private async verifySiteAccess(siteId: string, userId: string, role: string): Promise<void> {
+  private async verifySiteAccess(
+    siteId: string,
+    userId: string,
+    role: string,
+  ): Promise<void> {
     if (role === 'admin') return;
 
     if (role === 'site_engineer') {
@@ -1437,14 +1682,19 @@ export class ReportsService {
         throw new ForbiddenException('You are not assigned to this site');
       }
     } else if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
-      if (!contractor) throw new ForbiddenException('Contractor profile not found');
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
+      if (!contractor)
+        throw new ForbiddenException('Contractor profile not found');
 
       const project = await this.projectRepo
         .createQueryBuilder('p')
         .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
         .where('ps.id = :siteId', { siteId })
-        .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+        .andWhere('p."contractorId" = :contractorId', {
+          contractorId: contractor.id,
+        })
         .getOne();
 
       if (!project) {

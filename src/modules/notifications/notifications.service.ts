@@ -1,4 +1,9 @@
-import { Injectable, Logger, Optional, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Optional,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';

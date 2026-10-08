@@ -84,11 +84,11 @@ const entities = [
         // spamming "SELECT ... ALTER TABLE users ADD ..." and hanging on CockroachDB.
         // Use migrations for schema changes instead.
         const shouldSync =
-          process.env.DB_SYNC === 'true' ||
-          process.env.TYPEORM_SYNC === 'true';
+          process.env.DB_SYNC === 'true' || process.env.TYPEORM_SYNC === 'true';
         // Render (Linux) has no APPDATA, and Cockroach DATABASE_URL already has ?sslmode=verify-full
         // — so don't crash on path.join(undefined). Try to read root.crt if present, else no explicit ssl.
-        const useSsl = url.includes('sslmode=') || url.includes('cockroachlabs.cloud');
+        const useSsl =
+          url.includes('sslmode=') || url.includes('cockroachlabs.cloud');
         let ssl: any = undefined;
         if (useSsl) {
           try {
@@ -96,7 +96,10 @@ const entities = [
               ? path.join(process.env.APPDATA, 'postgresql', 'root.crt')
               : path.join(process.cwd(), 'certs', 'root.crt');
             if (fs.existsSync(certPath)) {
-              ssl = { rejectUnauthorized: true, ca: fs.readFileSync(certPath).toString() };
+              ssl = {
+                rejectUnauthorized: true,
+                ca: fs.readFileSync(certPath).toString(),
+              };
             } else {
               ssl = { rejectUnauthorized: true };
             }
@@ -119,4 +122,4 @@ const entities = [
   ],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

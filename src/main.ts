@@ -15,7 +15,9 @@ async function bootstrap() {
   // Fail fast: never start in production without a proper JWT_SECRET
   const jwtSecret = process.env.JWT_SECRET;
   if (process.env.NODE_ENV === 'production' && !jwtSecret) {
-    throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+    throw new Error(
+      'FATAL: JWT_SECRET environment variable is required in production',
+    );
   }
 
   const app = await NestFactory.create(AppModule);

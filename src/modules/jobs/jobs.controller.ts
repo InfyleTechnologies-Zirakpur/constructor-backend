@@ -134,7 +134,11 @@ export class JobsController {
 
   @Post(':id/report')
   @Roles('job_seeker')
-  async reportJob(@Req() req: any, @Param('id') id: string, @Body() body: { reason: string }) {
+  async reportJob(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
     const data = await this.jobsService.reportJob(req.user.id, id, body.reason);
     return { message: 'Job reported', data };
   }
