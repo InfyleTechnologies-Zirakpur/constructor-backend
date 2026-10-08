@@ -176,7 +176,9 @@ export class JobsService {
   async toggleSave(userId: string, jobId: string) {
     const job = await this.jobRepository.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
-    const existing = await this.savedJobRepository.findOne({ where: { userId, jobId } });
+    const existing = await this.savedJobRepository.findOne({
+      where: { userId, jobId },
+    });
     if (existing) {
       await this.savedJobRepository.remove(existing);
       return { saved: false, jobId };
@@ -189,12 +191,13 @@ export class JobsService {
   async getSavedJobs(userId: string) {
     const saved = await this.savedJobRepository.find({ where: { userId } });
     if (saved.length === 0) return { items: [], total: 0 };
-    const jobIds = saved.map(s => s.jobId);
-    const jobs = await this.jobRepository.createQueryBuilder('job')
+    const jobIds = saved.map((s) => s.jobId);
+    const jobs = await this.jobRepository
+      .createQueryBuilder('job')
       .leftJoinAndSelect('job.company', 'company')
       .where('job.id IN (:...jobIds)', { jobIds })
       .getMany();
-    const items = jobs.map(job => ({
+    const items = jobs.map((job) => ({
       id: job.id,
       title: job.title,
       company: (job as any).company?.name ?? 'Unknown',
@@ -211,7 +214,12 @@ export class JobsService {
     const job = await this.jobRepository.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
     // Store as audit log or moderation flag — for now return reported
-    return { reported: true, jobId, reason: reason ?? 'reported', reportedBy: userId };
+    return {
+      reported: true,
+      jobId,
+      reason: reason ?? 'reported',
+      reportedBy: userId,
+    };
   }
 
   /**
@@ -316,4 +324,3 @@ export class JobsService {
     };
   }
 }
-

@@ -66,21 +66,35 @@ export class WorkerAppService {
 
   private isBunnyConfigured() {
     const z = process.env.BUNNY_STORAGE_ZONE;
-    const p = process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
-    return !!z && !!p && p !== 'your-bunny-storage-password' && p !== 'your-bunny-storage-api-key';
+    const p =
+      process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
+    return (
+      !!z &&
+      !!p &&
+      p !== 'your-bunny-storage-password' &&
+      p !== 'your-bunny-storage-api-key'
+    );
   }
 
   /** Seeker doc kinds sent by Flutter as `type`. */
   private normalizeDocSubtype(raw: unknown): string | null {
     const t = (raw ?? '').toString().trim().toLowerCase();
     if (t === 'aadhaar') return 'aadhaar';
-    if (t === 'experience' || t === 'experience_certificate' || t === 'experience-certificate') return 'experience';
-    if (t === 'skill' || t === 'skill_certificate' || t === 'skill-certificate') return 'skill';
+    if (
+      t === 'experience' ||
+      t === 'experience_certificate' ||
+      t === 'experience-certificate'
+    )
+      return 'experience';
+    if (t === 'skill' || t === 'skill_certificate' || t === 'skill-certificate')
+      return 'skill';
     return null;
   }
 
   private docTypeOf(objectKey: string, fallbackEntityType: string): string {
-    const m = (objectKey ?? '').match(/worker_doc\/(aadhaar|experience|skill)\//);
+    const m = (objectKey ?? '').match(
+      /worker_doc\/(aadhaar|experience|skill)\//,
+    );
     if (m) return m[1];
     if (fallbackEntityType !== 'worker_doc') return fallbackEntityType;
     return 'worker_doc';
@@ -91,7 +105,10 @@ export class WorkerAppService {
    * fails — never return a fake success URL in that case.
    * Returns null only when Bunny is NOT configured (local dev).
    */
-  private async putToBunny(objectKey: string, file: any): Promise<string | null> {
+  private async putToBunny(
+    objectKey: string,
+    file: any,
+  ): Promise<string | null> {
     const cfgZone = process.env.BUNNY_STORAGE_ZONE ?? 'media-construction';
     const cfgPass =
       process.env.BUNNY_STORAGE_API_KEY ?? process.env.BUNNY_STORAGE_PASSWORD;
@@ -106,8 +123,12 @@ export class WorkerAppService {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      this.logger.error(`Bunny PUT failed (${res.status}) for ${objectKey}: ${body}`);
-      throw new BadRequestException(`Media upload failed (Bunny ${res.status}). Please retry.`);
+      this.logger.error(
+        `Bunny PUT failed (${res.status}) for ${objectKey}: ${body}`,
+      );
+      throw new BadRequestException(
+        `Media upload failed (Bunny ${res.status}). Please retry.`,
+      );
     }
     return `${this.pullBase()}/${objectKey}`;
   }
@@ -174,13 +195,15 @@ export class WorkerAppService {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2, '0');
     const objectKey = `documents/user_avatar/${yyyy}/${mm}/${userId}/${dd}_${sanitized}_${Date.now().toString().slice(-6)}.${ext}`;
     // Upload via Bunny (throws when configured + PUT fails)
     const bunnyUrl = await this.putToBunny(objectKey, file);
     const profilePhotoUrl = bunnyUrl ?? `${this.pullBase()}/${objectKey}`;
     if (!bunnyUrl) {
-      this.logger.warn(`Bunny not configured — avatar ${objectKey} stored as DB row only`);
+      this.logger.warn(
+        `Bunny not configured — avatar ${objectKey} stored as DB row only`,
+      );
     }
     try {
       const doc = this.documentRepo.create({
@@ -206,7 +229,8 @@ export class WorkerAppService {
   // ════════════════════════════════════════════════════
 
   async uploadDocument(userId: string, file: any, type: string) {
-    if (!file?.buffer && !file?.size) throw new BadRequestException('No file provided');
+    if (!file?.buffer && !file?.size)
+      throw new BadRequestException('No file provided');
     if (!type) throw new BadRequestException('Document type is required');
 
     const subtype = this.normalizeDocSubtype(type);
@@ -217,7 +241,9 @@ export class WorkerAppService {
     }
     const allowedMime = ['application/pdf', 'image/jpeg', 'image/png'];
     if (file.mimetype && !allowedMime.includes(file.mimetype)) {
-      throw new BadRequestException(`Invalid mime ${file.mimetype}. Allowed ${allowedMime.join(', ')}`);
+      throw new BadRequestException(
+        `Invalid mime ${file.mimetype}. Allowed ${allowedMime.join(', ')}`,
+      );
     }
     if (file.size && file.size > 10 * 1024 * 1024) {
       throw new BadRequestException('File too large, max 10MB');
@@ -239,7 +265,9 @@ export class WorkerAppService {
     const bunnyUrl = await this.putToBunny(objectKey, file);
     const url = bunnyUrl ?? `${this.pullBase()}/${objectKey}`;
     if (!bunnyUrl) {
-      this.logger.warn(`Bunny not configured — doc ${objectKey} stored as DB row only`);
+      this.logger.warn(
+        `Bunny not configured — doc ${objectKey} stored as DB row only`,
+      );
     }
 
     const document = this.documentRepo.create({

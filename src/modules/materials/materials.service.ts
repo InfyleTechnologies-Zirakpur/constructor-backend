@@ -184,7 +184,12 @@ export class MaterialsService {
    * Get stock balance for a site (or a specific material on a site).
    * Site engineers and contractors are subject to site-level isolation.
    */
-  async getStock(siteId: string, userId: string, role: string, materialId?: string) {
+  async getStock(
+    siteId: string,
+    userId: string,
+    role: string,
+    materialId?: string,
+  ) {
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
     } else if (role === 'contractor') {
@@ -330,13 +335,16 @@ export class MaterialsService {
     userId: string,
   ): Promise<void> {
     const contractor = await this.contractorRepo.findOne({ where: { userId } });
-    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+    if (!contractor)
+      throw new ForbiddenException('Contractor profile not found');
 
     const project = await this.projectRepo
       .createQueryBuilder('p')
       .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
       .where('ps.id = :siteId', { siteId })
-      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .andWhere('p."contractorId" = :contractorId', {
+        contractorId: contractor.id,
+      })
       .getOne();
 
     if (!project) {
@@ -344,4 +352,3 @@ export class MaterialsService {
     }
   }
 }
-

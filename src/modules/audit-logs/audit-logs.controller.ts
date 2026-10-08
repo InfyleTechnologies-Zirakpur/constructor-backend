@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -25,7 +34,12 @@ export class AuditLogsController {
     @Query('entityType') entityType?: string,
     @Query('actorId') actorId?: string,
   ) {
-    return this.auditLogsService.list(Number(page), Number(limit), entityType, actorId);
+    return this.auditLogsService.list(
+      Number(page),
+      Number(limit),
+      entityType,
+      actorId,
+    );
   }
 
   @Get(':id')

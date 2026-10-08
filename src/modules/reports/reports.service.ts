@@ -1635,15 +1635,9 @@ export class ReportsService {
       return [p];
     }
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: [{ userId }, { id: userId }],
-      });
-      const contractorId = contractor?.id;
-      return this.projectRepo.find({
-        where: contractorId
-          ? [{ contractorId }, { contractorId: userId }]
-          : [{ contractorId: userId }],
-      });
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      if (!contractor) return [];
+      return this.projectRepo.find({ where: { contractorId: contractor.id } });
     }
     return this.projectRepo.find();
   }
@@ -1659,15 +1653,8 @@ export class ReportsService {
     if (!project) throw new NotFoundException('Project not found');
 
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: [{ userId }, { id: userId }],
-      });
-      const contractorId = contractor?.id;
-      const isOwner =
-        (contractorId && project.contractorId === contractorId) ||
-        project.contractorId === userId;
-
-      if (!isOwner) {
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      if (!contractor || project.contractorId !== contractor.id) {
         throw new ForbiddenException('You do not have access to this project');
       }
     } else if (role !== 'admin') {
@@ -1700,46 +1687,16 @@ export class ReportsService {
       if (!assignment) {
         throw new ForbiddenException('You are not assigned to this site');
       }
-      return;
-    }
+    } else if (role === 'contractor') {
+      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      if (!contractor) throw new ForbiddenException('Contractor profile not found');
 
-    // 3. Contractor access: project ownership or direct site assignment
-    if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({
-        where: [{ userId }, { id: userId }],
-      });
-      const contractorId = contractor?.id;
-
-      // Check relation or direct lookup for parent project
-      let project: Project | null = site.project ?? null;
-      if (!project && site.projectId) {
-        project = await this.projectRepo.findOne({
-          where: { id: site.projectId },
-        });
-      }
-
-      const isProjectOwner =
-        project &&
-        ((contractorId && project.contractorId === contractorId) ||
-          project.contractorId === userId);
-
-      if (isProjectOwner) {
-        return;
-      }
-
-      // QueryBuilder check for project ownership if relations were not loaded
-      if (contractorId || userId) {
-        const ownedProject = await this.projectRepo
-          .createQueryBuilder('p')
-          .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
-          .where('ps.id = :siteId', { siteId })
-          .andWhere(
-            contractorId
-              ? '(p."contractorId" = :contractorId OR p."contractorId" = :userId)'
-              : 'p."contractorId" = :userId',
-            { contractorId, userId },
-          )
-          .getOne();
+      const project = await this.projectRepo
+        .createQueryBuilder('p')
+        .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
+        .where('ps.id = :siteId', { siteId })
+        .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+        .getOne();
 
         if (ownedProject) {
           return;

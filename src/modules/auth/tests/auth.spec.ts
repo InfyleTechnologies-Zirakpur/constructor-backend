@@ -39,7 +39,9 @@ const buildService = () => {
       );
     }
     if (dto.email) {
-      const existing = await mockUserRepo.findOne({ where: { email: dto.email } });
+      const existing = await mockUserRepo.findOne({
+        where: { email: dto.email },
+      });
       if (existing) throw new ConflictException('Email already registered');
     }
     return { user: { id: 'u1', role: dto.role } };
@@ -50,13 +52,18 @@ const buildService = () => {
     const user = await mockUserRepo.findOne({ where: { email: dto.email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (user.isBlocked) throw new UnauthorizedException('Account is blocked');
-    if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
+    if (!user.isActive)
+      throw new UnauthorizedException('Account is deactivated');
     if (user.lockoutUntil && new Date() < user.lockoutUntil) {
       throw new UnauthorizedException('Account is locked. Try later');
     }
-    if (!user.passwordHash) throw new UnauthorizedException('Password not set. Use OTP login');
+    if (!user.passwordHash)
+      throw new UnauthorizedException('Password not set. Use OTP login');
 
-    const isValid = await (bcrypt as any).compare(dto.password, user.passwordHash);
+    const isValid = await (bcrypt as any).compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isValid) {
       const attempts = Number(user.failedLoginAttempts) || 0;
       user.failedLoginAttempts = attempts + 1;
@@ -69,7 +76,11 @@ const buildService = () => {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return { user: { id: user.id, role: user.role }, accessToken: 'tok', refreshToken: 'rtok' };
+    return {
+      user: { id: user.id, role: user.role },
+      accessToken: 'tok',
+      refreshToken: 'rtok',
+    };
   }
 
   async function requestOtp(dto: any) {
@@ -90,10 +101,17 @@ const buildService = () => {
 
   async function refreshToken(userId: string, dto: any) {
     const user = await mockUserRepo.findOne({ where: { id: userId } });
-    if (!user || !user.refreshTokenHash) throw new UnauthorizedException('Invalid session');
-    const isValid = await (bcrypt as any).compare(dto.refreshToken, user.refreshTokenHash);
+    if (!user || !user.refreshTokenHash)
+      throw new UnauthorizedException('Invalid session');
+    const isValid = await (bcrypt as any).compare(
+      dto.refreshToken,
+      user.refreshTokenHash,
+    );
     if (!isValid) throw new UnauthorizedException('Invalid refresh token');
-    return { accessToken: 'new.access.token', refreshToken: 'new.refresh.token' };
+    return {
+      accessToken: 'new.access.token',
+      refreshToken: 'new.refresh.token',
+    };
   }
 
   return { register, login, requestOtp, refreshToken };
@@ -110,39 +128,52 @@ describe('Auth — register()', () => {
     mockUserRepo.save.mockResolvedValue({ id: 'u1', role: 'job_seeker' });
 
     const { register } = buildService();
-    const result = await register({ email: 'a@b.com', role: 'job_seeker', password: 'pass1234' });
+    const result = await register({
+      email: 'a@b.com',
+      role: 'job_seeker',
+      password: 'pass1234',
+    });
     expect(result.user.role).toBe('job_seeker');
   });
 
   it('rejects admin self-registration', async () => {
     const { register } = buildService();
-    await expect(register({ email: 'a@b.com', role: 'admin', password: 'pass1234' }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      register({ email: 'a@b.com', role: 'admin', password: 'pass1234' }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects contractor self-registration', async () => {
     const { register } = buildService();
-    await expect(register({ email: 'a@b.com', role: 'contractor', password: 'pass1234' }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      register({ email: 'a@b.com', role: 'contractor', password: 'pass1234' }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects site_engineer self-registration', async () => {
     const { register } = buildService();
-    await expect(register({ email: 'a@b.com', role: 'site_engineer', password: 'pass1234' }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      register({
+        email: 'a@b.com',
+        role: 'site_engineer',
+        password: 'pass1234',
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects company self-registration', async () => {
     const { register } = buildService();
-    await expect(register({ email: 'a@b.com', role: 'company', password: 'pass1234' }))
-      .rejects.toThrow(BadRequestException);
+    await expect(
+      register({ email: 'a@b.com', role: 'company', password: 'pass1234' }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('rejects duplicate email', async () => {
     mockUserRepo.findOne.mockResolvedValue({ id: 'existing' });
     const { register } = buildService();
-    await expect(register({ email: 'dup@b.com', role: 'job_seeker' }))
-      .rejects.toThrow(ConflictException);
+    await expect(
+      register({ email: 'dup@b.com', role: 'job_seeker' }),
+    ).rejects.toThrow(ConflictException);
   });
 });
 
@@ -152,7 +183,9 @@ describe('Auth — login() — username enumeration prevention', () => {
   it('returns UnauthorizedException (not NotFoundException) for unknown email', async () => {
     mockUserRepo.findOne.mockResolvedValue(null);
     const { login } = buildService();
-    const err = await login({ email: 'ghost@b.com', password: 'pass' }).catch((e) => e);
+    const err = await login({ email: 'ghost@b.com', password: 'pass' }).catch(
+      (e) => e,
+    );
     expect(err).toBeInstanceOf(UnauthorizedException);
     expect(err.message).toBe('Invalid credentials'); // not 'User not found'
   });
@@ -171,15 +204,22 @@ describe('Auth — login() — username enumeration prevention', () => {
     mockUserRepo.save.mockResolvedValue({});
 
     const { login } = buildService();
-    const err = await login({ email: 'a@b.com', password: 'wrong' }).catch((e) => e);
+    const err = await login({ email: 'a@b.com', password: 'wrong' }).catch(
+      (e) => e,
+    );
     expect(err).toBeInstanceOf(UnauthorizedException);
     expect(err.message).toBe('Invalid credentials'); // same message
   });
 
   it('locks account after 5 failed attempts', async () => {
     const user = {
-      id: 'u1', role: 'admin', isBlocked: false, isActive: true,
-      lockoutUntil: null, passwordHash: '$hashed$', failedLoginAttempts: 4,
+      id: 'u1',
+      role: 'admin',
+      isBlocked: false,
+      isActive: true,
+      lockoutUntil: null,
+      passwordHash: '$hashed$',
+      failedLoginAttempts: 4,
     };
     mockUserRepo.findOne.mockResolvedValue({ ...user });
     (bcrypt as any).compare.mockResolvedValue(false);
@@ -196,32 +236,45 @@ describe('Auth — login() — username enumeration prevention', () => {
   it('rejects blocked account', async () => {
     mockUserRepo.findOne.mockResolvedValue({ isBlocked: true, isActive: true });
     const { login } = buildService();
-    await expect(login({ email: 'a@b.com', password: 'p' }))
-      .rejects.toThrow(UnauthorizedException);
+    await expect(login({ email: 'a@b.com', password: 'p' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects deactivated account', async () => {
-    mockUserRepo.findOne.mockResolvedValue({ isBlocked: false, isActive: false });
+    mockUserRepo.findOne.mockResolvedValue({
+      isBlocked: false,
+      isActive: false,
+    });
     const { login } = buildService();
-    await expect(login({ email: 'a@b.com', password: 'p' }))
-      .rejects.toThrow(UnauthorizedException);
+    await expect(login({ email: 'a@b.com', password: 'p' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects locked account', async () => {
     const future = new Date();
     future.setHours(future.getHours() + 1);
     mockUserRepo.findOne.mockResolvedValue({
-      isBlocked: false, isActive: true, lockoutUntil: future,
+      isBlocked: false,
+      isActive: true,
+      lockoutUntil: future,
     });
     const { login } = buildService();
-    await expect(login({ email: 'a@b.com', password: 'p' }))
-      .rejects.toThrow(UnauthorizedException);
+    await expect(login({ email: 'a@b.com', password: 'p' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('succeeds with valid credentials', async () => {
     mockUserRepo.findOne.mockResolvedValue({
-      id: 'u1', role: 'contractor', isBlocked: false, isActive: true,
-      lockoutUntil: null, passwordHash: '$hashed$', failedLoginAttempts: 0,
+      id: 'u1',
+      role: 'contractor',
+      isBlocked: false,
+      isActive: true,
+      lockoutUntil: null,
+      passwordHash: '$hashed$',
+      failedLoginAttempts: 0,
     });
     (bcrypt as any).compare.mockResolvedValue(true);
     mockUserRepo.save.mockResolvedValue({});
@@ -262,20 +315,28 @@ describe('Auth — refreshToken()', () => {
   it('rejects missing session', async () => {
     mockUserRepo.findOne.mockResolvedValue(null);
     const { refreshToken } = buildService();
-    await expect(refreshToken('u1', { refreshToken: 'tok' }))
-      .rejects.toThrow(UnauthorizedException);
+    await expect(refreshToken('u1', { refreshToken: 'tok' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects invalid refresh token', async () => {
-    mockUserRepo.findOne.mockResolvedValue({ id: 'u1', refreshTokenHash: '$hash$' });
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      refreshTokenHash: '$hash$',
+    });
     (bcrypt as any).compare.mockResolvedValue(false);
     const { refreshToken } = buildService();
-    await expect(refreshToken('u1', { refreshToken: 'bad' }))
-      .rejects.toThrow(UnauthorizedException);
+    await expect(refreshToken('u1', { refreshToken: 'bad' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('returns new tokens on valid refresh token', async () => {
-    mockUserRepo.findOne.mockResolvedValue({ id: 'u1', refreshTokenHash: '$hash$' });
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      refreshTokenHash: '$hash$',
+    });
     (bcrypt as any).compare.mockResolvedValue(true);
     mockUserRepo.save.mockResolvedValue({});
     const { refreshToken } = buildService();
@@ -292,7 +353,10 @@ describe('RBAC — RolesGuard logic', () => {
   };
 
   const buildGuard = () => ({
-    canActivate: (requiredRoles: string[] | undefined, userRole: string | undefined) => {
+    canActivate: (
+      requiredRoles: string[] | undefined,
+      userRole: string | undefined,
+    ) => {
       if (!requiredRoles || requiredRoles.length === 0) return true;
       if (!userRole) return false;
       return requiredRoles.includes(userRole);

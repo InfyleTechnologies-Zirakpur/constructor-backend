@@ -3,6 +3,18 @@ import { CalculatorsService } from './calculators.service.js';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import {
+  AggregateCalculatorDto,
+  BrickCalculatorDto,
+  CementCalculatorDto,
+  ConcreteCalculatorDto,
+  FlooringCalculatorDto,
+  MaterialEstimationDto,
+  PaintCalculatorDto,
+  PlasterCalculatorDto,
+  SandCalculatorDto,
+  SteelCalculatorDto,
+} from './dto/create-calculators.dto.js';
 
 @Controller('calculators')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -14,21 +26,20 @@ export class CalculatorsController {
    */
   @Get('concrete')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getConcreteEstimate(
-    @Query('length') length: string,
-    @Query('breadth') breadth: string,
-    @Query('height') height: string,
-    @Query('mixRatio') mixRatio = '1:2:4',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateConcrete(
-        Number(length),
-        Number(breadth),
-        Number(height),
-        mixRatio,
-      ),
-    };
+  getConcreteEstimate(@Query() dto: ConcreteCalculatorDto) {
+    return this.calculatorsService.calculateConcrete(
+      dto.length,
+      dto.breadth,
+      dto.height,
+      {
+        quantity: dto.quantity,
+        grade: dto.grade,
+        mixRatio: dto.mixRatio,
+        wastagePercent: dto.wastagePercent,
+        truckCapacityM3: dto.truckCapacityM3,
+        steelKgPerM3: dto.steelKgPerM3,
+      },
+    );
   }
 
   /**
@@ -36,19 +47,11 @@ export class CalculatorsController {
    */
   @Get('cement')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getCementEstimate(
-    @Query('area') area: string,
-    @Query('thickness') thickness: string,
-    @Query('mixRatio') mixRatio = '1:4',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateCement(
-        Number(area),
-        Number(thickness),
-        mixRatio,
-      ),
-    };
+  getCementEstimate(@Query() dto: CementCalculatorDto) {
+    return this.calculatorsService.calculateCement(dto.area, dto.thickness, {
+      mixRatio: dto.mixRatio,
+      wastagePercent: dto.wastagePercent,
+    });
   }
 
   /**
@@ -56,19 +59,11 @@ export class CalculatorsController {
    */
   @Get('sand')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getSandEstimate(
-    @Query('area') area: string,
-    @Query('thickness') thickness: string,
-    @Query('mixRatio') mixRatio = '1:4',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateSand(
-        Number(area),
-        Number(thickness),
-        mixRatio,
-      ),
-    };
+  getSandEstimate(@Query() dto: SandCalculatorDto) {
+    return this.calculatorsService.calculateSand(dto.area, dto.thickness, {
+      mixRatio: dto.mixRatio,
+      wastagePercent: dto.wastagePercent,
+    });
   }
 
   /**
@@ -76,21 +71,17 @@ export class CalculatorsController {
    */
   @Get('aggregate')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getAggregateEstimate(
-    @Query('length') length: string,
-    @Query('breadth') breadth: string,
-    @Query('height') height: string,
-    @Query('mixRatio') mixRatio = '1:2:4',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateAggregate(
-        Number(length),
-        Number(breadth),
-        Number(height),
-        mixRatio,
-      ),
-    };
+  getAggregateEstimate(@Query() dto: AggregateCalculatorDto) {
+    return this.calculatorsService.calculateAggregate(
+      dto.length,
+      dto.breadth,
+      dto.height,
+      {
+        grade: dto.grade,
+        mixRatio: dto.mixRatio,
+        wastagePercent: dto.wastagePercent,
+      },
+    );
   }
 
   /**
@@ -98,21 +89,16 @@ export class CalculatorsController {
    */
   @Get('brick')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getBrickEstimate(
-    @Query('wallLength') wallLength: string,
-    @Query('wallHeight') wallHeight: string,
-    @Query('wallThickness') wallThickness: string,
-    @Query('mortarThickness') mortarThickness = '0.01',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateBrick(
-        Number(wallLength),
-        Number(wallHeight),
-        Number(wallThickness),
-        Number(mortarThickness),
-      ),
-    };
+  getBrickEstimate(@Query() dto: BrickCalculatorDto) {
+    return this.calculatorsService.calculateBrick(
+      dto.wallLength,
+      dto.wallHeight,
+      dto.wallThickness,
+      {
+        mortarRatio: dto.mortarRatio,
+        wastagePercent: dto.wastagePercent,
+      },
+    );
   }
 
   /**
@@ -120,21 +106,13 @@ export class CalculatorsController {
    */
   @Get('steel')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getSteelEstimate(
-    @Query('length') length: string,
-    @Query('breadth') breadth: string,
-    @Query('depth') depth: string,
-    @Query('steelPercentage') steelPercentage = '1',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateSteel(
-        Number(length),
-        Number(breadth),
-        Number(depth),
-        Number(steelPercentage),
-      ),
-    };
+  getSteelEstimate(@Query() dto: SteelCalculatorDto) {
+    return this.calculatorsService.calculateSteel(
+      dto.length,
+      dto.breadth,
+      dto.depth,
+      dto.steelPercentage,
+    );
   }
 
   /**
@@ -142,23 +120,14 @@ export class CalculatorsController {
    */
   @Get('flooring')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getFlooringEstimate(
-    @Query('roomLength') roomLength: string,
-    @Query('roomBreadth') roomBreadth: string,
-    @Query('tileLength') tileLength: string,
-    @Query('tileBreadth') tileBreadth: string,
-    @Query('wastagePercent') wastagePercent = '5',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateFlooring(
-        Number(roomLength),
-        Number(roomBreadth),
-        Number(tileLength),
-        Number(tileBreadth),
-        Number(wastagePercent),
-      ),
-    };
+  getFlooringEstimate(@Query() dto: FlooringCalculatorDto) {
+    return this.calculatorsService.calculateFlooring(
+      dto.roomLength,
+      dto.roomBreadth,
+      dto.tileLength,
+      dto.tileBreadth,
+      dto.wastagePercent,
+    );
   }
 
   /**
@@ -166,19 +135,12 @@ export class CalculatorsController {
    */
   @Get('paint')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getPaintEstimate(
-    @Query('wallArea') wallArea: string,
-    @Query('coats') coats = '2',
-    @Query('coveragePerLitre') coveragePerLitre = '12',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculatePaint(
-        Number(wallArea),
-        Number(coats),
-        Number(coveragePerLitre),
-      ),
-    };
+  getPaintEstimate(@Query() dto: PaintCalculatorDto) {
+    return this.calculatorsService.calculatePaint(
+      dto.wallArea,
+      dto.coats,
+      dto.coveragePerLitre,
+    );
   }
 
   /**
@@ -186,19 +148,11 @@ export class CalculatorsController {
    */
   @Get('plaster')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getPlasterEstimate(
-    @Query('area') area: string,
-    @Query('thickness') thickness: string,
-    @Query('mixRatio') mixRatio = '1:4',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculatePlaster(
-        Number(area),
-        Number(thickness),
-        mixRatio,
-      ),
-    };
+  getPlasterEstimate(@Query() dto: PlasterCalculatorDto) {
+    return this.calculatorsService.calculatePlaster(dto.area, dto.thickness, {
+      mixRatio: dto.mixRatio,
+      wastagePercent: dto.wastagePercent,
+    });
   }
 
   /**
@@ -206,18 +160,11 @@ export class CalculatorsController {
    */
   @Get('material-estimation')
   @Roles('admin', 'contractor', 'site_engineer', 'company', 'job_seeker')
-  getMaterialEstimation(
-    @Query('area') area: string,
-    @Query('thickness') thickness = '0.15',
-    @Query('materialType') materialType = 'concrete',
-  ) {
-    return {
-      success: true,
-      data: this.calculatorsService.calculateMaterialEstimation(
-        Number(area),
-        Number(thickness),
-        materialType,
-      ),
-    };
+  getMaterialEstimation(@Query() dto: MaterialEstimationDto) {
+    return this.calculatorsService.calculateMaterialEstimation(
+      dto.area,
+      dto.thickness,
+      dto.materialType,
+    );
   }
 }

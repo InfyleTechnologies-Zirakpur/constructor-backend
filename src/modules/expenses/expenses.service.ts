@@ -63,7 +63,12 @@ export class ExpensesService {
    * List expenses for a site.
    * Contractors must own the site's project; site engineers must be assigned.
    */
-  async listExpenses(siteId: string, userId: string, role: string, date?: string) {
+  async listExpenses(
+    siteId: string,
+    userId: string,
+    role: string,
+    date?: string,
+  ) {
     if (role === 'site_engineer') {
       await this.verifySiteAccess(siteId, userId);
     } else if (role === 'contractor') {
@@ -97,7 +102,11 @@ export class ExpensesService {
    * Get an expense by ID.
    * Enforces access control: contractors see only their sites'; engineers see only assigned sites'.
    */
-  async getExpenseById(id: string, userId: string, role: string): Promise<Expense> {
+  async getExpenseById(
+    id: string,
+    userId: string,
+    role: string,
+  ): Promise<Expense> {
     const expense = await this.expenseRepo.findOne({ where: { id } });
     if (!expense) throw new NotFoundException('Expense not found');
 
@@ -160,13 +169,16 @@ export class ExpensesService {
     userId: string,
   ): Promise<void> {
     const contractor = await this.contractorRepo.findOne({ where: { userId } });
-    if (!contractor) throw new ForbiddenException('Contractor profile not found');
+    if (!contractor)
+      throw new ForbiddenException('Contractor profile not found');
 
     const project = await this.projectRepo
       .createQueryBuilder('p')
       .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
       .where('ps.id = :siteId', { siteId })
-      .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+      .andWhere('p."contractorId" = :contractorId', {
+        contractorId: contractor.id,
+      })
       .getOne();
 
     if (!project) {

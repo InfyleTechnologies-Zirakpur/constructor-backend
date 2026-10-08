@@ -116,7 +116,12 @@ describe('NotificationsService & Processors', () => {
         {
           provide: getRepositoryToken(Contractor),
           useValue: {
-            findOne: vi.fn().mockResolvedValue({ id: 'contractor-1', userId: 'contractor-user-1' }),
+            findOne: vi
+              .fn()
+              .mockResolvedValue({
+                id: 'contractor-1',
+                userId: 'contractor-user-1',
+              }),
           },
         },
         {
@@ -127,7 +132,9 @@ describe('NotificationsService & Processors', () => {
               where: vi.fn().mockReturnThis(),
               andWhere: vi.fn().mockReturnThis(),
               select: vi.fn().mockReturnThis(),
-              getRawMany: vi.fn().mockResolvedValue([{ userId: 'eng-1' }, { userId: 'eng-2' }]),
+              getRawMany: vi
+                .fn()
+                .mockResolvedValue([{ userId: 'eng-1' }, { userId: 'eng-2' }]),
             })),
           },
         },

@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/calculators/concrete?length=10&breadth=5&height=0.15&mixRatio=1:2:4
+  url: {{baseUrl}}/calculators/concrete?length=10&breadth=5&height=0.15&grade=M20&wastagePercent=5&truckCapacityM3=5
   body: none
   auth: bearer
 }
@@ -18,5 +18,10 @@ params:query {
   length: 10
   breadth: 5
   height: 0.15
-  mixRatio: 1:2:4
+  grade: M20
+  wastagePercent: 5
+  truckCapacityM3: 5
+  ~mixRatio: 1:2:4
+  ~quantity: 1
+  ~steelKgPerM3: 80
 }

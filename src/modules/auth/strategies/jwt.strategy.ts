@@ -15,7 +15,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') ?? 'dev-secret-key-not-for-production',
+      secretOrKey:
+        configService.get<string>('JWT_SECRET') ??
+        'dev-secret-key-not-for-production',
     });
   }
 
@@ -29,7 +31,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if ((user as any).lockoutUntil && new Date() < (user as any).lockoutUntil) {
       throw new UnauthorizedException('Account locked');
     }
-    if (payload.ver !== undefined && Number(payload.ver) !== Number((user as any).tokenVersion)) {
+    if (
+      payload.ver !== undefined &&
+      Number(payload.ver) !== Number((user as any).tokenVersion)
+    ) {
       throw new UnauthorizedException('Session expired — logged in elsewhere');
     }
     // Omit sensitive fields

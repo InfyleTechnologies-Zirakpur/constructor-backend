@@ -93,7 +93,10 @@ export class NotificationsController {
   @Post('send')
   @Roles('admin', 'contractor')
   @Throttle({ default: { ttl: 60000, limit: 12 } })
-  async sendNotification(@Req() req: any, @Body() dto: AdminSendNotificationDto) {
+  async sendNotification(
+    @Req() req: any,
+    @Body() dto: AdminSendNotificationDto,
+  ) {
     const res = await this.notificationsService.sendNotification(
       dto,
       req.user.id,

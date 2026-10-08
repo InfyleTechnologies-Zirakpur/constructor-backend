@@ -125,7 +125,9 @@ describe('ExpensesService', () => {
         innerJoin: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         andWhere: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({ id: 'proj-1', contractorId: 'c-1' }),
+        getOne: vi
+          .fn()
+          .mockResolvedValue({ id: 'proj-1', contractorId: 'c-1' }),
       });
 
       await service.createExpense('site-1', 'user-c', 'contractor', {
@@ -134,7 +136,9 @@ describe('ExpensesService', () => {
         category: 'Supplies',
       });
 
-      expect(contractorRepo.findOne).toHaveBeenCalledWith({ where: { userId: 'user-c' } });
+      expect(contractorRepo.findOne).toHaveBeenCalledWith({
+        where: { userId: 'user-c' },
+      });
       expect(expenseRepo.create).toHaveBeenCalled();
     });
 
@@ -166,9 +170,9 @@ describe('ExpensesService', () => {
 
     it('should throw NotFoundException if not found', async () => {
       expenseRepo.findOne.mockResolvedValue(null);
-      await expect(service.getExpenseById('invalid', 'admin-id', 'admin')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.getExpenseById('invalid', 'admin-id', 'admin'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

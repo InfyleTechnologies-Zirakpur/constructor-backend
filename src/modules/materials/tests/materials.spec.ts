@@ -238,7 +238,9 @@ describe('MaterialsService', () => {
         rate: 350,
       });
 
-      expect(contractorRepo.findOne).toHaveBeenCalledWith({ where: { userId: 'user-c' } });
+      expect(contractorRepo.findOne).toHaveBeenCalledWith({
+        where: { userId: 'user-c' },
+      });
       expect(transactionRepo.create).toHaveBeenCalled();
     });
   });

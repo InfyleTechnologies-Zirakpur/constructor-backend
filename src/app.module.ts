@@ -91,12 +91,12 @@ const queueImports = queueEnabled
       {
         name: 'default',
         ttl: 60000, // 1 minute window
-        limit: 60,  // 60 requests per minute default
+        limit: 60, // 60 requests per minute default
       },
       {
         name: 'auth',
         ttl: 60000, // 1 minute window
-        limit: 10,  // 10 auth requests per minute
+        limit: 10, // 10 auth requests per minute
       },
     ]),
     JwtModule.registerAsync({
@@ -110,7 +110,7 @@ const queueImports = queueEnabled
         const expiresIn = config.get<string>('JWT_EXPIRES_IN') || '7d';
         return {
           secret: secret ?? 'dev-secret-key-not-for-production',
-          signOptions: { expiresIn: (expiresIn as any) },
+          signOptions: { expiresIn: expiresIn as any },
         };
       },
     }),
@@ -156,4 +156,3 @@ const queueImports = queueEnabled
   ],
 })
 export class AppModule {}
-
