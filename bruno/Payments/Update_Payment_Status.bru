@@ -1,0 +1,26 @@
+meta {
+  name: Update Payment Status
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/payments/:id/status
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{paymentId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "completed",
+    "transactionId": "TXN-BANK-0099"
+  }
+}

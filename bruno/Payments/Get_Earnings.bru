@@ -1,0 +1,15 @@
+meta {
+  name: Get Earnings Report
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/payments/earnings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

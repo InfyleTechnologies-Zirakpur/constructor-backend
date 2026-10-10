@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   Req,
@@ -108,7 +110,7 @@ export class JobsController {
   }
 
   @Patch(':id')
-  @Roles('company')
+  @Roles('company', 'admin')
   async update(
     @Req() req: any,
     @Param('id') id: string,
@@ -116,6 +118,24 @@ export class JobsController {
   ) {
     const job = await this.jobsService.update(id, req.user.id, dto);
     return { message: 'Job updated successfully', data: job };
+  }
+
+  @Put(':id')
+  @Roles('company', 'admin')
+  async replace(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateJobDto,
+  ) {
+    const job = await this.jobsService.update(id, req.user.id, dto);
+    return { message: 'Job updated successfully', data: job };
+  }
+
+  @Delete(':id')
+  @Roles('company', 'admin')
+  async delete(@Req() req: any, @Param('id') id: string) {
+    const job = await this.jobsService.close(id, req.user.id);
+    return { message: 'Job closed/deleted successfully', data: job };
   }
 
   @Post(':id/close')

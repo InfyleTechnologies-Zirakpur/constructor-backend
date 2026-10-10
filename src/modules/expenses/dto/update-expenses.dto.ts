@@ -27,4 +27,8 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsString()
   attachmentUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  receiptUrl?: string;
 }

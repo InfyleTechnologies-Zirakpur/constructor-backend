@@ -41,14 +41,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let message: string;
     let errors: Record<string, string[]> | undefined;
+    let code: string | undefined;
 
     if (typeof errorResponse === 'string') {
       message = errorResponse;
+      code = HttpStatus[status];
     } else {
       const errObj = errorResponse as any;
-      if (errObj.errors) {
+      code = errObj.code || HttpStatus[status];
+      if (errObj.errors || errObj.fieldErrors) {
         message = errObj.message || 'Validation failed';
-        errors = errObj.errors;
+        errors = errObj.errors || errObj.fieldErrors;
       } else if (Array.isArray(errObj.message)) {
         message = errObj.message[0] || 'An error occurred';
       } else {
@@ -58,8 +61,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       success: false,
+      code,
       message,
-      ...(errors ? { errors } : {}),
+      ...(errors ? { errors, fieldErrors: errors } : {}),
     });
   }
 }

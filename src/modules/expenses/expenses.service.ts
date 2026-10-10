@@ -52,7 +52,7 @@ export class ExpensesService {
       category: dto.category,
       description: dto.description,
       remarks: dto.remarks,
-      attachmentUrl: dto.attachmentUrl,
+      attachmentUrl: dto.attachmentUrl || dto.receiptUrl,
       createdById: userId,
     });
 
@@ -129,6 +129,9 @@ export class ExpensesService {
     dto: UpdateExpenseDto,
   ): Promise<Expense> {
     const expense = await this.getExpenseById(id, userId, role);
+    if (dto.receiptUrl && !dto.attachmentUrl) {
+      dto.attachmentUrl = dto.receiptUrl;
+    }
     Object.assign(expense, dto);
     return this.expenseRepo.save(expense);
   }

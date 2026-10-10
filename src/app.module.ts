@@ -34,6 +34,8 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { WorkerAppModule } from './modules/worker-app/worker-app.module.js';
 import { ConversationsModule } from './modules/conversations/conversations.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
+import { WorkersModule } from './modules/workers/workers.module.js';
+import { PaymentsModule } from './modules/payments/payments.module.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy.js';
@@ -131,6 +133,8 @@ const queueImports = queueEnabled
     WorkerAppModule,
     ConversationsModule,
     PostsModule,
+    WorkersModule,
+    PaymentsModule,
   ],
   controllers: [
     AppController,

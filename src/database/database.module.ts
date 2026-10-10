@@ -25,6 +25,8 @@ import { Message } from '../modules/conversations/entities/message.entity.js';
 import { Post } from '../modules/posts/entities/post.entity.js';
 import { PostComment } from '../modules/posts/entities/post-comment.entity.js';
 import { PostLike } from '../modules/posts/entities/post-like.entity.js';
+import { Worker } from '../modules/workers/entities/worker.entity.js';
+import { Payment } from '../modules/payments/entities/payment.entity.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -69,6 +71,8 @@ const entities = [
   Post,
   PostComment,
   PostLike,
+  Worker,
+  Payment,
 ];
 
 @Module({

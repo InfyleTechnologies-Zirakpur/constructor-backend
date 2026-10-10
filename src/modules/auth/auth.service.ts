@@ -526,8 +526,23 @@ export class AuthService {
     };
   }
 
-  async refreshToken(userId: string, dto: RefreshTokenDto) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+  decodeToken(token: string) {
+    try {
+      return this.jwtService.decode(token);
+    } catch {
+      return null;
+    }
+  }
+
+  async refreshToken(userId: string | undefined, dto: RefreshTokenDto) {
+    const targetUserId = userId || dto.userId;
+    if (!targetUserId) {
+      throw new UnauthorizedException('User identifier required for refresh');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: targetUserId },
+    });
     if (!user || !user.refreshTokenHash) {
       throw new UnauthorizedException('Invalid session');
     }

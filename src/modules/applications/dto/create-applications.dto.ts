@@ -15,6 +15,10 @@ export class CreateApplicationDto {
 
   @IsOptional()
   @IsString()
+  jobId?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(100)
   availability?: string;
 }

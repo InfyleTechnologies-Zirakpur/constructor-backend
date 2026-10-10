@@ -7,19 +7,32 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateExpenseDto {
-  @IsString()
+export class CreatePaymentDto {
   @IsNotEmpty()
-  date: string; // YYYY-MM-DD
-
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   amount: number;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  category: string;
+  jobId?: string;
+
+  @IsOptional()
+  @IsString()
+  workerId?: string;
+
+  @IsOptional()
+  @IsString()
+  contractorId?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 
   @IsOptional()
   @IsString()
@@ -27,13 +40,9 @@ export class CreateExpenseDto {
 
   @IsOptional()
   @IsString()
-  remarks?: string;
+  transactionId?: string;
 
   @IsOptional()
   @IsString()
-  attachmentUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  receiptUrl?: string;
+  status?: string;
 }

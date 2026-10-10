@@ -1,0 +1,19 @@
+meta {
+  name: Get Site Progress
+  type: http
+  seq: 32
+}
+
+get {
+  url: {{baseUrl}}/sites/:siteId/progress
+  body: none
+  auth: bearer
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
