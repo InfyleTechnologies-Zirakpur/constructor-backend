@@ -1,0 +1,28 @@
+meta {
+  name: Record Site Progress
+  type: http
+  seq: 31
+}
+
+post {
+  url: {{baseUrl}}/sites/:siteId/progress
+  body: json
+  auth: bearer
+}
+
+params:path {
+  siteId: {{siteId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "progressPercentage": 45,
+    "workCompleted": "Second floor brick masonry work completed",
+    "remarks": "On track for schedule",
+    "attachmentUrls": ["https://s3.aws.com/bucket/photos/progress-01.jpg"]
+  }
+}

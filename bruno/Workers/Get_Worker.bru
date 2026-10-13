@@ -1,0 +1,19 @@
+meta {
+  name: Get Worker
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/workers/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{workerId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

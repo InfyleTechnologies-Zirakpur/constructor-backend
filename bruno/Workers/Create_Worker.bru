@@ -1,0 +1,26 @@
+meta {
+  name: Create Worker
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/workers
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Ramesh Kumar",
+    "phone": "9876543210",
+    "city": "Bathinda, Punjab",
+    "skills": ["Mason", "Plaster"],
+    "availability": "available",
+    "rating": 4.5
+  }
+}

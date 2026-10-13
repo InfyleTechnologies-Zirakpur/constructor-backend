@@ -90,17 +90,31 @@ export class SitesService {
     const totalLabourCost = Number(dto.totalLabourCost ?? 0);
     const totalMaterialCost = Number(dto.totalMaterialCost ?? 0);
     const totalExpense = Number(dto.totalExpense ?? 0);
-    const estimatedProfit = Number(dto.estimatedProfit ?? 0);
+    const otherCosts = Number(dto.otherCosts ?? 0);
+    const totalDailyCost =
+      totalLabourCost + totalMaterialCost + totalExpense + otherCosts;
+    const dailyRevenue = Number(dto.dailyRevenue ?? 0);
+    const estimatedProfit =
+      dto.estimatedProfit !== undefined
+        ? Number(dto.estimatedProfit)
+        : dailyRevenue - totalDailyCost;
     const submittedById = dto.submittedById || dto.userId;
 
     const report = this.dailyReportRepository.create({
       siteId,
       submittedById,
-      date: dateStr,
+      date: dto.date || dateStr,
       totalLabourCost,
       totalMaterialCost,
       totalExpense,
+      otherCosts,
+      totalDailyCost,
+      dailyRevenue,
       estimatedProfit,
+      progressPercentage: dto.progressPercentage ?? 0,
+      workCompleted: dto.workCompleted,
+      remarks: dto.remarks,
+      attachmentUrls: dto.attachmentUrls,
       status: 'draft',
     });
 

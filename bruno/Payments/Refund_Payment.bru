@@ -1,0 +1,25 @@
+meta {
+  name: Refund Payment
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/payments/:id/refund
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{paymentId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "reason": "Dispute resolved - refund processed"
+  }
+}

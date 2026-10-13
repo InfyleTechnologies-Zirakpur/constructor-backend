@@ -1,0 +1,15 @@
+meta {
+  name: Placement Report
+  type: http
+  seq: 34
+}
+
+get {
+  url: {{baseUrl}}/reports/placements
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

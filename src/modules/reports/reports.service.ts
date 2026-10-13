@@ -29,6 +29,8 @@ import { ExpensesService } from '../expenses/expenses.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { CreateDailyReportDto } from './dto/create-reports.dto.js';
 import { UpdateReportStatusDto } from './dto/update-reports.dto.js';
+import { UpdateDailyReportDto } from './dto/update-daily-report.dto.js';
+import { RecordProgressDto } from './dto/record-progress.dto.js';
 import {
   CreateExportDto,
   FinancialReportQueryDto,
@@ -146,6 +148,119 @@ export class ReportsService {
     });
 
     return this.reportRepo.save(report);
+  }
+
+  async updateDailyReport(
+    reportId: string,
+    userId: string,
+    role: string,
+    dto: UpdateDailyReportDto,
+  ): Promise<DailyReport> {
+    const report = await this.reportRepo.findOne({ where: { id: reportId } });
+    if (!report) throw new NotFoundException('Report not found');
+
+    await this.verifySiteAccess(report.siteId, userId, role);
+
+    if (report.status === 'reviewed') {
+      throw new BadRequestException('Reviewed reports cannot be edited');
+    }
+
+    if (dto.workCompleted !== undefined) report.workCompleted = dto.workCompleted;
+    if (dto.progressPercentage !== undefined)
+      report.progressPercentage = dto.progressPercentage;
+    if (dto.remarks !== undefined) report.remarks = dto.remarks;
+    if (dto.attachmentUrls !== undefined) report.attachmentUrls = dto.attachmentUrls;
+    if (dto.otherCosts !== undefined) report.otherCosts = dto.otherCosts;
+    if (dto.dailyRevenue !== undefined) report.dailyRevenue = dto.dailyRevenue;
+
+    const otherCosts = Number(report.otherCosts || 0);
+    report.totalDailyCost =
+      Number(report.totalLabourCost || 0) +
+      Number(report.totalMaterialCost || 0) +
+      Number(report.totalExpense || 0) +
+      otherCosts;
+    report.estimatedProfit =
+      Number(report.dailyRevenue || 0) - report.totalDailyCost;
+
+    return this.reportRepo.save(report);
+  }
+
+  async recordProgress(
+    siteId: string,
+    userId: string,
+    role: string,
+    dto: RecordProgressDto,
+  ): Promise<DailyReport> {
+    await this.verifySiteAccess(siteId, userId, role);
+
+    const today = new Date();
+    const dateStr =
+      dto.date ||
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    let report = await this.reportRepo.findOne({
+      where: { siteId, date: dateStr },
+    });
+
+    const photos = dto.attachmentUrls || dto.photos || [];
+
+    if (report) {
+      report.progressPercentage = dto.progressPercentage;
+      if (dto.workCompleted) {
+        report.workCompleted = report.workCompleted
+          ? `${report.workCompleted}\n${dto.workCompleted}`
+          : dto.workCompleted;
+      }
+      if (dto.remarks) {
+        report.remarks = report.remarks
+          ? `${report.remarks}\n${dto.remarks}`
+          : dto.remarks;
+      }
+      if (photos.length > 0) {
+        const existingUrls = report.attachmentUrls || [];
+        report.attachmentUrls = Array.from(new Set([...existingUrls, ...photos]));
+      }
+
+      const [labourCost, materialCost, expenseCost] = await Promise.all([
+        this.attendanceService.getSiteLabourCost(siteId, dateStr),
+        this.materialsService.getSiteMaterialCost(siteId, dateStr),
+        this.expensesService.getSiteExpenseCost(siteId, dateStr),
+      ]);
+      report.totalLabourCost = labourCost;
+      report.totalMaterialCost = materialCost;
+      report.totalExpense = expenseCost;
+      report.totalDailyCost =
+        labourCost + materialCost + expenseCost + Number(report.otherCosts || 0);
+      report.estimatedProfit =
+        Number(report.dailyRevenue || 0) - report.totalDailyCost;
+
+      return this.reportRepo.save(report);
+    } else {
+      const [labourCost, materialCost, expenseCost] = await Promise.all([
+        this.attendanceService.getSiteLabourCost(siteId, dateStr),
+        this.materialsService.getSiteMaterialCost(siteId, dateStr),
+        this.expensesService.getSiteExpenseCost(siteId, dateStr),
+      ]);
+      const totalDailyCost = labourCost + materialCost + expenseCost;
+      report = this.reportRepo.create({
+        siteId,
+        date: dateStr,
+        totalLabourCost: labourCost,
+        totalMaterialCost: materialCost,
+        totalExpense: expenseCost,
+        otherCosts: 0,
+        totalDailyCost,
+        dailyRevenue: 0,
+        estimatedProfit: -totalDailyCost,
+        progressPercentage: dto.progressPercentage,
+        workCompleted: dto.workCompleted,
+        remarks: dto.remarks,
+        attachmentUrls: photos,
+        submittedById: userId,
+        status: 'draft',
+      });
+      return this.reportRepo.save(report);
+    }
   }
 
   async updateReportStatus(
@@ -1317,6 +1432,119 @@ export class ReportsService {
     };
   }
 
+  async getPlacementReport(
+    _userId: string,
+    _role: string,
+    query?: any,
+  ) {
+    const qb = this.applicationRepo
+      .createQueryBuilder('app')
+      .leftJoinAndSelect('app.job', 'job')
+      .leftJoinAndSelect('app.user', 'user');
+
+    if (query?.status) {
+      qb.andWhere('app.status = :status', { status: query.status });
+    }
+
+    const applications = await qb.getMany();
+    const placed = applications.filter(
+      (a) => a.status === 'accepted' || a.status === 'shortlisted',
+    );
+
+    const byCategory: Record<string, number> = {};
+    for (const a of placed) {
+      const cat = a.job?.category || 'General';
+      byCategory[cat] = (byCategory[cat] ?? 0) + 1;
+    }
+
+    return {
+      totalPlacements: placed.length,
+      totalApplications: applications.length,
+      placementRate:
+        applications.length > 0
+          ? Number(((placed.length / applications.length) * 100).toFixed(1))
+          : 0,
+      placementsByCategory: byCategory,
+      items: placed.slice(0, 50).map((p) => ({
+        id: p.id,
+        jobTitle: p.job?.title,
+        category: p.job?.category,
+        workerName: p.user?.fullName,
+        workerPhone: p.user?.phone,
+        status: p.status,
+        updatedAt: p.updatedAt,
+      })),
+    };
+  }
+
+  async getWorkerReport(
+    _userId: string,
+    _role: string,
+    _query?: any,
+  ) {
+    const totalWorkers = await this.userRepo.count({
+      where: { role: 'job_seeker' },
+    });
+    const activeWorkers = await this.userRepo.count({
+      where: { role: 'job_seeker', isActive: true },
+    });
+    const verifiedWorkers = await this.userRepo.count({
+      where: { role: 'job_seeker', isVerified: true },
+    });
+
+    const attendances = await this.attendanceRepo.find({
+      order: { date: 'DESC' },
+      take: 100,
+    });
+
+    const totalHours = attendances.reduce(
+      (sum, a) => sum + Number(a.workingHours || 0),
+      0,
+    );
+
+    return {
+      totalWorkers,
+      activeWorkers,
+      verifiedWorkers,
+      shiftsTracked: attendances.length,
+      totalHoursLogged: Number(totalHours.toFixed(1)),
+    };
+  }
+
+  async getRevenueReport(
+    _userId: string,
+    _role: string,
+    _query?: any,
+  ) {
+    const reports = await this.reportRepo.find({
+      order: { date: 'DESC' },
+    });
+
+    const totalRevenue = reports.reduce(
+      (sum, r) => sum + Number(r.dailyRevenue || 0),
+      0,
+    );
+    const totalCost = reports.reduce(
+      (sum, r) => sum + Number(r.totalDailyCost || 0),
+      0,
+    );
+    const estimatedProfit = reports.reduce(
+      (sum, r) => sum + Number(r.estimatedProfit || 0),
+      0,
+    );
+
+    return {
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      totalCost: Number(totalCost.toFixed(2)),
+      estimatedProfit: Number(estimatedProfit.toFixed(2)),
+      profitMargin:
+        totalRevenue > 0
+          ? Number(((estimatedProfit / totalRevenue) * 100).toFixed(1))
+          : 0,
+      reportCount: reports.length,
+    };
+  }
+
   // ═══════════════════════════════════════════════════
   //  6. EXPORT FUNCTIONALITY (CSV, Excel, PDF)
   // ═══════════════════════════════════════════════════
@@ -1687,20 +1915,22 @@ export class ReportsService {
       if (!assignment) {
         throw new ForbiddenException('You are not assigned to this site');
       }
-    } else if (role === 'contractor') {
+      return;
+    }
+
+    if (role === 'contractor') {
       const contractor = await this.contractorRepo.findOne({ where: { userId } });
       if (!contractor) throw new ForbiddenException('Contractor profile not found');
 
-      const project = await this.projectRepo
+      const ownedProject = await this.projectRepo
         .createQueryBuilder('p')
         .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
         .where('ps.id = :siteId', { siteId })
         .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
         .getOne();
 
-        if (ownedProject) {
-          return;
-        }
+      if (ownedProject) {
+        return;
       }
 
       // Check if contractor is assigned to this site

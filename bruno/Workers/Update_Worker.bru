@@ -1,0 +1,26 @@
+meta {
+  name: Update Worker
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/workers/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{workerId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "availability": "busy",
+    "rating": 4.8
+  }
+}

@@ -82,6 +82,17 @@ export class AuthController {
   }
 
   /**
+   * POST /auth/forgot-password — Request OTP for password reset.
+   * Rate limited to 5 attempts per minute.
+   */
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 5 } })
+  async forgotPassword(@Body() dto: RequestOtpDto) {
+    return this.authService.requestOtp(dto);
+  }
+
+  /**
    * POST /auth/reset-password — Reset password using phone + OTP.
    * Rate limited to 5 attempts per minute.
    */
@@ -94,15 +105,40 @@ export class AuthController {
 
   /**
    * POST /auth/refresh — Refresh access token using refresh token.
-   * Requires a valid (possibly expired) JWT to identify the user — IDOR-safe.
-   * The refresh token in the body is validated against the stored hash.
+   * Allows expired JWT in Authorization header or userId in body.
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'))
   @Throttle({ auth: { ttl: 60000, limit: 10 } })
   async refreshToken(@Req() req: any, @Body() dto: RefreshTokenDto) {
-    return this.authService.refreshToken(req.user.id, dto);
+    const authHeader = req.headers['authorization'];
+    let userId = req.user?.id || dto.userId;
+    if (
+      !userId &&
+      authHeader &&
+      typeof authHeader === 'string' &&
+      authHeader.startsWith('Bearer ')
+    ) {
+      const token = authHeader.substring(7).trim();
+      const decoded = this.authService.decodeToken(token);
+      if (decoded && (decoded as any).sub) {
+        userId = (decoded as any).sub;
+      }
+    }
+    return this.authService.refreshToken(userId, dto);
+  }
+
+  /**
+   * POST /auth/users/:userId/refresh — Refresh session for a specific user ID.
+   */
+  @Post('users/:userId/refresh')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  async refreshUserToken(
+    @Param('userId') userId: string,
+    @Body() dto: RefreshTokenDto,
+  ) {
+    return this.authService.refreshToken(userId, dto);
   }
 
   /**

@@ -14,6 +14,8 @@ import type { Response } from 'express';
 import { ReportsService } from './reports.service.js';
 import { CreateDailyReportDto } from './dto/create-reports.dto.js';
 import { UpdateReportStatusDto } from './dto/update-reports.dto.js';
+import { UpdateDailyReportDto } from './dto/update-daily-report.dto.js';
+import { RecordProgressDto } from './dto/record-progress.dto.js';
 import {
   CreateExportDto,
   FinancialReportQueryDto,
@@ -55,6 +57,94 @@ export class ReportsController {
       message: 'Daily report created',
       data: report,
     };
+  }
+
+  /**
+   * PATCH /reports/:id — Update/edit a daily report.
+   */
+  @Patch('reports/:id')
+  @Roles('admin', 'contractor', 'site_engineer')
+  async updateDailyReport(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateDailyReportDto,
+  ) {
+    const report = await this.reportsService.updateDailyReport(
+      id,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
+    return {
+      success: true,
+      message: 'Daily report updated',
+      data: report,
+    };
+  }
+
+  /**
+   * PATCH /sites/:siteId/daily-reports/:id — Update/edit a daily report by site ID.
+   */
+  @Patch('sites/:siteId/daily-reports/:id')
+  @Roles('admin', 'contractor', 'site_engineer')
+  async updateSiteDailyReport(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateDailyReportDto,
+  ) {
+    const report = await this.reportsService.updateDailyReport(
+      id,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
+    return {
+      success: true,
+      message: 'Daily report updated',
+      data: report,
+    };
+  }
+
+  /**
+   * POST /sites/:siteId/progress — Record site progress (Site Engineer daily entry).
+   */
+  @Post('sites/:siteId/progress')
+  @Roles('admin', 'contractor', 'site_engineer')
+  async recordProgress(
+    @Req() req: any,
+    @Param('siteId') siteId: string,
+    @Body() dto: RecordProgressDto,
+  ) {
+    const report = await this.reportsService.recordProgress(
+      siteId,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
+    return {
+      success: true,
+      message: 'Progress recorded successfully',
+      data: report,
+    };
+  }
+
+  /**
+   * GET /sites/:siteId/progress — Get site progress report & curve.
+   */
+  @Get('sites/:siteId/progress')
+  @Roles('admin', 'contractor', 'site_engineer')
+  async getSiteProgress(
+    @Req() req: any,
+    @Param('siteId') siteId: string,
+    @Query() query: SiteReportQueryDto,
+  ) {
+    const data = await this.reportsService.getSiteProgressReport(
+      siteId,
+      req.user.id,
+      req.user.role,
+      query,
+    );
+    return { success: true, data };
   }
 
   /**
@@ -482,6 +572,48 @@ export class ReportsController {
     @Query() query: FinancialReportQueryDto,
   ) {
     const data = await this.reportsService.getFinancialProfitabilityReport(
+      req.user.id,
+      req.user.role,
+      query,
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * GET /reports/placements — Placement statistics report.
+   */
+  @Get('reports/placements')
+  @Roles('admin', 'company', 'contractor')
+  async getPlacementReport(@Req() req: any, @Query() query: any) {
+    const data = await this.reportsService.getPlacementReport(
+      req.user.id,
+      req.user.role,
+      query,
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * GET /reports/workers — Worker performance & attendance summary report.
+   */
+  @Get('reports/workers')
+  @Roles('admin', 'contractor')
+  async getWorkerReport(@Req() req: any, @Query() query: any) {
+    const data = await this.reportsService.getWorkerReport(
+      req.user.id,
+      req.user.role,
+      query,
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * GET /reports/revenue — Overall revenue, cost & estimated profit report.
+   */
+  @Get('reports/revenue')
+  @Roles('admin', 'contractor')
+  async getRevenueReport(@Req() req: any, @Query() query: any) {
+    const data = await this.reportsService.getRevenueReport(
       req.user.id,
       req.user.role,
       query,

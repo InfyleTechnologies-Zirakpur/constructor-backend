@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   Req,
@@ -20,6 +22,26 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
+
+  /**
+   * POST /applications — Create job application with jobId in body.
+   */
+  @Post()
+  @Roles('job_seeker')
+  async createApplication(
+    @Req() req: any,
+    @Body() dto: CreateApplicationDto,
+  ) {
+    if (!dto.jobId) {
+      throw new BadRequestException('jobId is required');
+    }
+    const application = await this.applicationsService.apply(
+      dto.jobId,
+      req.user.id,
+      dto,
+    );
+    return { message: 'Application submitted successfully', data: application };
+  }
 
   /**
    * POST /jobs/:jobId/applications — Job Seeker applies to a job.
@@ -94,6 +116,25 @@ export class ApplicationsController {
       dto,
     );
     return { message: 'Application status updated', data: application };
+  }
+
+  /**
+   * PUT /applications/:id — Update application status.
+   */
+  @Put(':id')
+  @Roles('admin', 'company')
+  async putUpdate(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateApplicationStatusDto,
+  ) {
+    const application = await this.applicationsService.updateStatus(
+      id,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
+    return { message: 'Application updated', data: application };
   }
 
   /**

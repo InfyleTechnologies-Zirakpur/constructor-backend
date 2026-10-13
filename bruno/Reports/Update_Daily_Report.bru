@@ -1,0 +1,29 @@
+meta {
+  name: Update Daily Report
+  type: http
+  seq: 33
+}
+
+patch {
+  url: {{baseUrl}}/reports/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{reportId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "progressPercentage": 50,
+    "workCompleted": "Updated work details for Block A",
+    "dailyRevenue": 20000,
+    "otherCosts": 400,
+    "remarks": "Updated after site review"
+  }
+}

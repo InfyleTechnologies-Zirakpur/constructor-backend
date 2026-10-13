@@ -1,0 +1,15 @@
+meta {
+  name: Revenue Report
+  type: http
+  seq: 36
+}
+
+get {
+  url: {{baseUrl}}/reports/revenue
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

@@ -62,7 +62,13 @@ const ALLOWED_TYPES: Record<
     roles: ['site_engineer', 'contractor', 'admin'],
     mime: ['image/jpeg', 'image/png', 'image/webp'],
     max: 10 * 1024 * 1024,
-    needLocation: true,
+    needLocation: false,
+  },
+  progress_photo: {
+    roles: ['site_engineer', 'contractor', 'admin'],
+    mime: ['image/jpeg', 'image/png', 'image/webp'],
+    max: 10 * 1024 * 1024,
+    needLocation: false,
   },
   material_receipt: {
     roles: ['site_engineer', 'contractor', 'admin'],
@@ -80,7 +86,7 @@ const ALLOWED_TYPES: Record<
     roles: ['site_engineer', 'contractor', 'admin'],
     mime: ['image/jpeg', 'image/png', 'image/webp'],
     max: 10 * 1024 * 1024,
-    needLocation: true,
+    needLocation: false,
   },
 };
 
@@ -194,7 +200,7 @@ export class DocumentsService {
     entityId: string,
     filename: string,
     mimeType: string,
-    userId: string,
+    _userId: string,
   ) {
     const policy = ALLOWED_TYPES[entityType];
     if (!policy)
