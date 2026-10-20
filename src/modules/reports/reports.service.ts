@@ -1453,7 +1453,7 @@ export class ReportsService {
 
     const byCategory: Record<string, number> = {};
     for (const a of placed) {
-      const cat = a.job?.category || 'General';
+      const cat = a.job?.projectType || 'General';
       byCategory[cat] = (byCategory[cat] ?? 0) + 1;
     }
 
@@ -1468,7 +1468,7 @@ export class ReportsService {
       items: placed.slice(0, 50).map((p) => ({
         id: p.id,
         jobTitle: p.job?.title,
-        category: p.job?.category,
+        category: p.job?.projectType,
         workerName: p.user?.fullName,
         workerPhone: p.user?.phone,
         status: p.status,
@@ -1498,7 +1498,7 @@ export class ReportsService {
     });
 
     const totalHours = attendances.reduce(
-      (sum, a) => sum + Number(a.workingHours || 0),
+      (sum, a) => sum + Number(a.totalMinutes || 0) / 60,
       0,
     );
 
