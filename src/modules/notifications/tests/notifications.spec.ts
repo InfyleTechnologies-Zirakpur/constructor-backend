@@ -116,12 +116,10 @@ describe('NotificationsService & Processors', () => {
         {
           provide: getRepositoryToken(Contractor),
           useValue: {
-            findOne: vi
-              .fn()
-              .mockResolvedValue({
-                id: 'contractor-1',
-                userId: 'contractor-user-1',
-              }),
+            findOne: vi.fn().mockResolvedValue({
+              id: 'contractor-1',
+              userId: 'contractor-user-1',
+            }),
           },
         },
         {

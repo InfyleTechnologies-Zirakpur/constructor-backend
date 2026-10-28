@@ -165,11 +165,13 @@ export class ReportsService {
       throw new BadRequestException('Reviewed reports cannot be edited');
     }
 
-    if (dto.workCompleted !== undefined) report.workCompleted = dto.workCompleted;
+    if (dto.workCompleted !== undefined)
+      report.workCompleted = dto.workCompleted;
     if (dto.progressPercentage !== undefined)
       report.progressPercentage = dto.progressPercentage;
     if (dto.remarks !== undefined) report.remarks = dto.remarks;
-    if (dto.attachmentUrls !== undefined) report.attachmentUrls = dto.attachmentUrls;
+    if (dto.attachmentUrls !== undefined)
+      report.attachmentUrls = dto.attachmentUrls;
     if (dto.otherCosts !== undefined) report.otherCosts = dto.otherCosts;
     if (dto.dailyRevenue !== undefined) report.dailyRevenue = dto.dailyRevenue;
 
@@ -218,7 +220,9 @@ export class ReportsService {
       }
       if (photos.length > 0) {
         const existingUrls = report.attachmentUrls || [];
-        report.attachmentUrls = Array.from(new Set([...existingUrls, ...photos]));
+        report.attachmentUrls = Array.from(
+          new Set([...existingUrls, ...photos]),
+        );
       }
 
       const [labourCost, materialCost, expenseCost] = await Promise.all([
@@ -230,7 +234,10 @@ export class ReportsService {
       report.totalMaterialCost = materialCost;
       report.totalExpense = expenseCost;
       report.totalDailyCost =
-        labourCost + materialCost + expenseCost + Number(report.otherCosts || 0);
+        labourCost +
+        materialCost +
+        expenseCost +
+        Number(report.otherCosts || 0);
       report.estimatedProfit =
         Number(report.dailyRevenue || 0) - report.totalDailyCost;
 
@@ -1432,11 +1439,7 @@ export class ReportsService {
     };
   }
 
-  async getPlacementReport(
-    _userId: string,
-    _role: string,
-    query?: any,
-  ) {
+  async getPlacementReport(_userId: string, _role: string, query?: any) {
     const qb = this.applicationRepo
       .createQueryBuilder('app')
       .leftJoinAndSelect('app.job', 'job')
@@ -1477,11 +1480,7 @@ export class ReportsService {
     };
   }
 
-  async getWorkerReport(
-    _userId: string,
-    _role: string,
-    _query?: any,
-  ) {
+  async getWorkerReport(_userId: string, _role: string, _query?: any) {
     const totalWorkers = await this.userRepo.count({
       where: { role: 'job_seeker' },
     });
@@ -1511,11 +1510,7 @@ export class ReportsService {
     };
   }
 
-  async getRevenueReport(
-    _userId: string,
-    _role: string,
-    _query?: any,
-  ) {
+  async getRevenueReport(_userId: string, _role: string, _query?: any) {
     const reports = await this.reportRepo.find({
       order: { date: 'DESC' },
     });
@@ -1863,7 +1858,9 @@ export class ReportsService {
       return [p];
     }
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
       if (!contractor) return [];
       return this.projectRepo.find({ where: { contractorId: contractor.id } });
     }
@@ -1881,7 +1878,9 @@ export class ReportsService {
     if (!project) throw new NotFoundException('Project not found');
 
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
       if (!contractor || project.contractorId !== contractor.id) {
         throw new ForbiddenException('You do not have access to this project');
       }
@@ -1919,14 +1918,19 @@ export class ReportsService {
     }
 
     if (role === 'contractor') {
-      const contractor = await this.contractorRepo.findOne({ where: { userId } });
-      if (!contractor) throw new ForbiddenException('Contractor profile not found');
+      const contractor = await this.contractorRepo.findOne({
+        where: { userId },
+      });
+      if (!contractor)
+        throw new ForbiddenException('Contractor profile not found');
 
       const ownedProject = await this.projectRepo
         .createQueryBuilder('p')
         .innerJoin('project_sites', 'ps', 'ps."projectId" = p.id')
         .where('ps.id = :siteId', { siteId })
-        .andWhere('p."contractorId" = :contractorId', { contractorId: contractor.id })
+        .andWhere('p."contractorId" = :contractorId', {
+          contractorId: contractor.id,
+        })
         .getOne();
 
       if (ownedProject) {

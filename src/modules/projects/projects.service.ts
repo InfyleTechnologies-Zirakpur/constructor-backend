@@ -140,9 +140,7 @@ export class ProjectsService {
    * Stats for dashboard top cards — Onsite-style APPROV/MATERIAL/TO DO
    * Contractor scoped, admin global.
    */
-  async getStats(
-    userId?: string,
-  ): Promise<{
+  async getStats(userId?: string): Promise<{
     total: number;
     draft: number;
     active: number;

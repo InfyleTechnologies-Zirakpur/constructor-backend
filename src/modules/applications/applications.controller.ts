@@ -28,10 +28,7 @@ export class ApplicationsController {
    */
   @Post()
   @Roles('job_seeker')
-  async createApplication(
-    @Req() req: any,
-    @Body() dto: CreateApplicationDto,
-  ) {
+  async createApplication(@Req() req: any, @Body() dto: CreateApplicationDto) {
     if (!dto.jobId) {
       throw new BadRequestException('jobId is required');
     }

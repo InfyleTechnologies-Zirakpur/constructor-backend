@@ -153,9 +153,9 @@ describe('PaymentsService', () => {
         status: 'pending',
       });
 
-      await expect(
-        service.refund('pay-1', 'admin-1', 'admin'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.refund('pay-1', 'admin-1', 'admin')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

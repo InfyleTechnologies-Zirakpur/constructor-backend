@@ -27,7 +27,8 @@ export class PaymentsService {
     dto: CreatePaymentDto,
   ): Promise<Payment> {
     const status = dto.status ?? 'pending';
-    const txnId = dto.transactionId ?? `TXN-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const txnId =
+      dto.transactionId ?? `TXN-${randomUUID().slice(0, 8).toUpperCase()}`;
 
     const payment = this.paymentRepo.create({
       jobId: dto.jobId ?? null,
@@ -87,7 +88,10 @@ export class PaymentsService {
 
     const [items, total] = await qb.getManyAndCount();
 
-    const totalAmount = items.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalAmount = items.reduce(
+      (sum, item) => sum + Number(item.amount),
+      0,
+    );
 
     return {
       items,
@@ -131,7 +135,9 @@ export class PaymentsService {
     const payment = await this.findOne(id, userId, role);
 
     if (role !== 'admin' && role !== 'contractor') {
-      throw new ForbiddenException('Only admin or contractor can update payment status');
+      throw new ForbiddenException(
+        'Only admin or contractor can update payment status',
+      );
     }
 
     payment.status = dto.status;
