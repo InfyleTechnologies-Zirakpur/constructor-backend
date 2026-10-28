@@ -5,6 +5,8 @@ import { Job } from '../entities/job.entity.js';
 import { SavedJob } from '../entities/saved-job.entity.js';
 import { Application } from '../../applications/entities/application.entity.js';
 import { Company } from '../../companies/entities/company.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
@@ -17,6 +19,7 @@ const mockCompany = {
 const mockJob = {
   id: 'job-1',
   title: 'Test Job',
+  location: 'City',
   companyId: 'company-1',
   status: 'published',
   dailyPay: 850,
@@ -28,20 +31,37 @@ const mockJob = {
   company: mockCompany,
 };
 
+const mockSeeker = {
+  id: 'seeker-1',
+  role: 'job_seeker',
+  isActive: true,
+  isBlocked: false,
+};
+
 describe('JobsService', () => {
   let service: JobsService;
   let jobRepo: Repository<Job>;
   let companyRepo: Repository<Company>;
+  let userRepo: Repository<User>;
+
+  const mockNotificationsService = {
+    notifyNewJobPosted: vi.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobsService,
         {
           provide: getRepositoryToken(Job),
           useValue: {
-            create: vi.fn().mockReturnValue(mockJob),
-            save: vi.fn().mockResolvedValue(mockJob),
+            create: vi.fn().mockImplementation((dto) => ({
+              ...mockJob,
+              ...dto,
+            })),
+            save: vi.fn().mockImplementation((job) => Promise.resolve(job)),
             findOne: vi.fn().mockResolvedValue(mockJob),
             createQueryBuilder: vi.fn().mockReturnValue({
               leftJoinAndSelect: vi.fn().mockReturnThis(),
@@ -73,12 +93,23 @@ describe('JobsService', () => {
             find: vi.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            find: vi.fn().mockResolvedValue([mockSeeker]),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
       ],
     }).compile();
 
     service = module.get<JobsService>(JobsService);
     jobRepo = module.get<Repository<Job>>(getRepositoryToken(Job));
     companyRepo = module.get<Repository<Company>>(getRepositoryToken(Company));
+    userRepo = module.get<Repository<User>>(getRepositoryToken(User));
   });
 
   it('should be defined', () => {
@@ -97,13 +128,149 @@ describe('JobsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should create a job', async () => {
+    it('should create a job and notify job seekers by default (published)', async () => {
       const result = await service.create('user-1', {
-        title: 'Test',
+        title: 'Test Job',
         location: 'City',
         description: 'Desc',
       });
       expect(result.id).toBe('job-1');
+      expect(userRepo.find).toHaveBeenCalledWith({
+        where: {
+          role: 'job_seeker',
+          isActive: true,
+          isBlocked: false,
+        },
+        select: { id: true },
+      });
+      expect(mockNotificationsService.notifyNewJobPosted).toHaveBeenCalledWith(
+        'job-1',
+        'Test Job',
+        'City',
+        ['seeker-1'],
+      );
+    });
+
+    it('should create a draft job and not notify job seekers', async () => {
+      const result = await service.create('user-1', {
+        title: 'Draft Job',
+        location: 'City',
+        description: 'Desc',
+        status: 'draft',
+      });
+      expect(result.status).toBe('draft');
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should handle notification errors gracefully without failing job creation', async () => {
+      mockNotificationsService.notifyNewJobPosted.mockRejectedValueOnce(
+        new Error('FCM Network Error'),
+      );
+      const result = await service.create('user-1', {
+        title: 'Test Job',
+        location: 'City',
+        description: 'Desc',
+      });
+      expect(result.id).toBe('job-1');
+    });
+
+    it('should create a draft job and not notify job seekers', async () => {
+      const result = await service.create('user-1', {
+        title: 'Draft Job',
+        location: 'City',
+        description: 'Desc',
+        status: 'draft',
+      });
+      expect(result.status).toBe('draft');
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should handle notification errors gracefully without failing job creation', async () => {
+      mockNotificationsService.notifyNewJobPosted.mockRejectedValueOnce(
+        new Error('FCM Network Error'),
+      );
+      const result = await service.create('user-1', {
+        title: 'Test Job',
+        location: 'City',
+        description: 'Desc',
+      });
+      expect(result.id).toBe('job-1');
+    });
+  });
+
+  describe('update', () => {
+    it('should notify job seekers when transitioning a draft job to published', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValueOnce({
+        ...mockJob,
+        status: 'draft',
+      } as Job);
+
+      const result = await service.update('job-1', 'user-1', {
+        status: 'published',
+      });
+
+      expect(result.status).toBe('published');
+      expect(mockNotificationsService.notifyNewJobPosted).toHaveBeenCalledWith(
+        'job-1',
+        'Test Job',
+        'City',
+        ['seeker-1'],
+      );
+    });
+
+    it('should not notify job seekers when updating an already published job', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValueOnce({
+        ...mockJob,
+        status: 'published',
+      } as Job);
+
+      await service.update('job-1', 'user-1', {
+        title: 'Updated Title',
+      });
+
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('should notify job seekers when transitioning a draft job to published', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValueOnce({
+        ...mockJob,
+        status: 'draft',
+      } as Job);
+
+      const result = await service.update('job-1', 'user-1', {
+        status: 'published',
+      });
+
+      expect(result.status).toBe('published');
+      expect(mockNotificationsService.notifyNewJobPosted).toHaveBeenCalledWith(
+        'job-1',
+        'Test Job',
+        'City',
+        ['seeker-1'],
+      );
+    });
+
+    it('should not notify job seekers when updating an already published job', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValueOnce({
+        ...mockJob,
+        status: 'published',
+      } as Job);
+
+      await service.update('job-1', 'user-1', {
+        title: 'Updated Title',
+      });
+
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -167,7 +334,26 @@ describe('JobsService', () => {
   });
 
   describe('moderate', () => {
-    it('should moderate a job successfully', async () => {
+    it('should moderate a job successfully and notify when published', async () => {
+      vi.spyOn(jobRepo, 'findOne').mockResolvedValueOnce({
+        ...mockJob,
+        status: 'draft',
+      } as Job);
+
+      const result = await service.moderate('job-1', {
+        status: 'published',
+        moderationRemarks: 'Approved',
+      });
+      expect(result.status).toBe('published');
+      expect(mockNotificationsService.notifyNewJobPosted).toHaveBeenCalledWith(
+        'job-1',
+        'Test Job',
+        'City',
+        ['seeker-1'],
+      );
+    });
+
+    it('should moderate a job to rejected without notifying seekers', async () => {
       const saveSpy = vi
         .spyOn(jobRepo, 'save')
         .mockResolvedValueOnce({ ...mockJob, status: 'rejected' } as Job);
@@ -177,6 +363,12 @@ describe('JobsService', () => {
       });
       expect(result.status).toBe('rejected');
       expect(saveSpy).toHaveBeenCalled();
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockNotificationsService.notifyNewJobPosted,
+      ).not.toHaveBeenCalled();
     });
   });
 

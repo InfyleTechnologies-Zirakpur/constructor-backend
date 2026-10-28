@@ -198,10 +198,10 @@ export class NotificationsService {
         event: data.type,
         title: data.title,
         message: data.message,
-        recipientId: data.recipientId,
         referenceId: data.referenceId ?? '',
         createdAt: saved.createdAt?.toISOString() ?? new Date().toISOString(),
         ...(data.data ?? {}),
+        recipientId: data.recipientId,
       };
 
       const failedTokens = await this.firebaseProvider.sendToDevices(
@@ -421,7 +421,7 @@ export class NotificationsService {
               type,
               title,
               message,
-              data,
+              data: { ...(data ?? {}), recipientId: uid },
               recipientId: uid,
             },
             referenceId,

@@ -99,18 +99,21 @@ export const NotificationMessages = {
     jobTitle: string,
     location: string,
     jobId: string,
-    recipientId: string,
+    recipientId?: string,
   ): NotificationPayload {
+    const data: Record<string, string> = {
+      jobId,
+      location,
+    };
+    if (recipientId) {
+      data.recipientId = recipientId;
+    }
     return {
       type: 'new_job',
       title: `New Job: ${jobTitle}`,
       message: `A new job "${jobTitle}" matching your profile is available in ${location}`,
-      data: {
-        jobId,
-        location,
-        recipientId,
-      },
-      recipientId,
+      data,
+      recipientId: recipientId ?? '',
     };
   },
 

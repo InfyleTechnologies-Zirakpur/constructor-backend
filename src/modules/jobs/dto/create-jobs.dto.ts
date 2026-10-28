@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -34,4 +35,8 @@ export class CreateJobDto {
   @IsNumber()
   @Min(1)
   workforceRequired?: number;
+
+  @IsOptional()
+  @IsEnum(['draft', 'published'])
+  status?: string;
 }
