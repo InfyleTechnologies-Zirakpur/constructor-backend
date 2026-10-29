@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
+import * as fs from 'fs';
 import { Document } from './entities/document.entity.js';
 
 const ALLOWED_TYPES: Record<
@@ -169,7 +170,18 @@ export class DocumentsService {
   private async uploadToS3(key: string, file: any) {
     // Priority: Bunny first, then S3, then local-dev mock.
     if (this.isBunnyConfigured()) return this.uploadToBunny(key, file);
-    if (!this.isS3Configured()) return `https://cdn.buildhire.app/${key}`;
+    if (!this.isS3Configured()) {
+      try {
+        const uploadDir = path.resolve(process.cwd(), 'uploads');
+        const targetPath = path.join(uploadDir, key);
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.writeFileSync(targetPath, file.buffer);
+      } catch (err) {
+        this.logger.warn(`Could not save local upload: ${err}`);
+      }
+      const host = this.config.get<string>('API_HOST') || '192.168.1.11:3000';
+      return `http://${host}/api/v1/documents/raw/${key}`;
+    }
     try {
       const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
       const client = new S3Client({
@@ -196,8 +208,8 @@ export class DocumentsService {
 
   async getPresignedUrl(doc: Document): Promise<string> {
     if (this.isBunnyConfigured()) return this.getBunnyUrl(doc.objectKey);
-    if (!this.isS3Configured())
-      return `https://cdn.buildhire.app/${doc.objectKey}`;
+    if (!this.isS3Configured()) return 'http://' + (this.config.get<string>('API_HOST') || '192.168.1.11:3000') + '/api/v1/documents/raw/' + doc.objectKey;
+
     return `https://cdn.buildhire.app/${doc.objectKey}`;
   }
 
@@ -286,11 +298,7 @@ export class DocumentsService {
     
     const dd = String(now.getDate()).padStart(2, '0');
     const shortId = randomUUID().slice(0, 8);
-    // Meaningful: documents/<type>/<yyyy>/<mm>/<entityId>/<dd>_<base>_<shortId><ext>
-    // Example: documents/company_doc/2026/09/23bf.../22_WhatsApp_Image_398ec835.jpg
-    // Future insights: you can list by year/month/entityId and see original name + date
-    // NOTE: worker_doc keys embed the subtype (aadhaar/experience/skill) —
-    // see uploadCompat — so Bunny dashboard groups seeker docs by kind.
+   
     const key =
       dto.entityType === 'worker_doc' && (dto as any).subtype
         ? `documents/worker_doc/${(dto as any).subtype}/${yyyy}/${mm}/${dto.entityId}/${dd}_${base}_${shortId}${ext}`
@@ -338,6 +346,9 @@ export class DocumentsService {
       );
     }
     const subtype =
+      raw === 'resume' || raw === 'cv'
+        ? 'resume'
+        :
       raw === 'experience' ||
       raw === 'experience_certificate' ||
       raw === 'experience-certificate'

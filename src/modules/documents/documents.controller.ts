@@ -10,7 +10,10 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Res,
 } from '@nestjs/common';
+import * as path from 'path';
+import * as fs from 'fs';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -72,6 +75,18 @@ export class DocumentsController {
       mimeType,
       req.user.id,
     );
+  }
+
+  @Get('raw/*')
+  @Roles('job_seeker', 'company', 'contractor', 'site_engineer', 'admin')
+  async getRawFile(@Req() req: any, @Res() res: any) {
+    const rawKey = req.url.split('/documents/raw/')[1];
+    const key = decodeURIComponent(rawKey);
+    const targetPath = path.resolve(process.cwd(), 'uploads', key);
+    if (fs.existsSync(targetPath)) {
+      return res.sendFile(targetPath);
+    }
+    return res.status(404).send('File not found');
   }
 
   @Get()

@@ -15,6 +15,9 @@ import { Attendance } from '../attendance/entities/attendance.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { Document } from '../documents/entities/document.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { PdfResumeCompiler } from './pdf-resume-compiler.js';
 
 @Injectable()
 export class WorkerAppService {
@@ -392,17 +395,34 @@ export class WorkerAppService {
     const meta = user.metadata || {};
     const resumes = Array.isArray(meta.resumes) ? [...meta.resumes] : [];
     const index = resumes.findIndex((r) => r.id === resume.id);
-    const updatedItem = {
+    const updatedItem: Record<string, any> = {
       ...resume,
       id: resume.id || Date.now().toString(),
       updatedAt: new Date().toISOString(),
     };
+    const host = process.env.API_HOST || '192.168.1.11:3000';
+    if (!updatedItem.fileUrl) {
+      updatedItem.fileUrl = `http://${host}/api/v1/resumes/${updatedItem.id}/pdf`;
+    }
+    try {
+      const pdfBuffer = PdfResumeCompiler.compile(updatedItem);
+      const targetDir = path.resolve(process.cwd(), 'uploads', 'resumes');
+      fs.mkdirSync(targetDir, { recursive: true });
+      fs.writeFileSync(path.join(targetDir, `${updatedItem.id}.pdf`), pdfBuffer);
+    } catch (err: any) {
+      this.logger.warn(`Could not cache resume PDF: ${err?.message}`);
+    }
     if (index >= 0) {
       resumes[index] = { ...resumes[index], ...updatedItem };
     } else {
       resumes.unshift(updatedItem);
     }
     user.metadata = { ...meta, resumes };
+    if (resume.fullName && String(resume.fullName).trim()) user.fullName = String(resume.fullName).trim();
+    if (resume.currentAddress && String(resume.currentAddress).trim()) user.city = String(resume.currentAddress).trim();
+    if (Array.isArray(resume.technicalSkills) && resume.technicalSkills.length > 0) user.skills = Array.from(new Set([...(user.skills || []), ...resume.technicalSkills.map((s: any) => String(s).trim()).filter(Boolean)]));
+    if (Array.isArray(resume.workExperiences) && resume.workExperiences.length > 0) user.experience = resume.workExperiences.map((w: any) => ({ company: w.companyName || w.company || '', role: w.jobTitle || w.role || '', years: parseInt(w.years || '0', 10) || 0, startDate: w.startDate, endDate: w.endDate, responsibility: w.responsibility, isCurrentlyWorking: w.isCurrentlyWorking }));
+    if (Array.isArray(resume.educations) && resume.educations.length > 0) user.education = resume.educations.map((e: any) => ({ qualification: e.qualification || e.degree || '', instituteName: e.instituteName || e.institution || '', yearOfPassing: e.yearOfPassing || e.year || '', percentageOrCgpa: e.percentageOrCgpa || e.score || '' }));
     await this.userRepo.save(user);
     return updatedItem;
   }
@@ -412,10 +432,36 @@ export class WorkerAppService {
     if (!user) throw new NotFoundException('User not found');
     const meta = user.metadata || {};
     const resumes = Array.isArray(meta.resumes) ? [...meta.resumes] : [];
-    const filtered = resumes.filter((r) => r.id !== resumeId);
+    const filtered = resumes.filter((r: any) => String(r.id) !== String(resumeId));
     user.metadata = { ...meta, resumes: filtered };
     await this.userRepo.save(user);
     return { success: true };
+  }
+
+  async getResumePdf(userId: string, resumeId: string, res: any) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const meta = user.metadata || {};
+    const resumes = Array.isArray(meta.resumes) ? meta.resumes : [];
+    const resume = resumes.find((r: any) => String(r.id) === String(resumeId));
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    const targetFile = path.resolve(process.cwd(), 'uploads', 'resumes', `${resumeId}.pdf`);
+    let pdfBuffer: Buffer;
+    if (fs.existsSync(targetFile)) {
+      pdfBuffer = fs.readFileSync(targetFile);
+    } else {
+      pdfBuffer = PdfResumeCompiler.compile(resume);
+      try {
+        fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+        fs.writeFileSync(targetFile, pdfBuffer);
+      } catch (_) {}
+    }
+
+    const filename = `${(resume.title || 'Resume').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(pdfBuffer);
   }
 
   // ════════════════════════════════════════════════════
