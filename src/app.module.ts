@@ -152,7 +152,6 @@ const queueImports = queueEnabled
     CalculatorsService,
     ProjectsService,
     SitesService,
-    // Apply ThrottlerGuard globally — routes use @SkipThrottle() to opt out
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

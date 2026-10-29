@@ -30,7 +30,13 @@ const ALLOWED_TYPES: Record<
   },
   worker_doc: {
     roles: ['job_seeker'],
-    mime: ['application/pdf', 'image/jpeg', 'image/png'],
+    mime: [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
     max: 10 * 1024 * 1024,
     needLocation: false,
   },
@@ -277,6 +283,7 @@ export class DocumentsService {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
+    
     const dd = String(now.getDate()).padStart(2, '0');
     const shortId = randomUUID().slice(0, 8);
     // Meaningful: documents/<type>/<yyyy>/<mm>/<entityId>/<dd>_<base>_<shortId><ext>
@@ -335,7 +342,9 @@ export class DocumentsService {
               raw === 'skill_certificate' ||
               raw === 'skill-certificate'
             ? 'skill'
-            : null;
+            : raw === 'resume' || raw === 'cv'
+              ? 'resume'
+              : null;
     const saved: any = await this.upload(file, userId, {
       entityType: 'worker_doc',
       entityId: userId,
@@ -384,7 +393,7 @@ export class DocumentsService {
   private subtypeOf(doc: Document): string {
     if (doc.entityType !== 'worker_doc') return doc.entityType;
     const m = (doc.objectKey ?? '').match(
-      /worker_doc\/(aadhaar|experience|skill)\//,
+      /worker_doc\/(aadhaar|experience|skill|resume|cv)\//,
     );
     return m ? m[1] : 'worker_doc';
   }

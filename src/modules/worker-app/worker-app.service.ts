@@ -51,6 +51,9 @@ export class WorkerAppService {
       profilePhotoUrl: user.avatarUrl ?? null,
       documents: [] as any[],
       salaryExpectation: user.salaryExpectation ?? '',
+      education: user.education ?? [],
+      experience: user.experience ?? [],
+      resumes: (user.metadata as any)?.resumes ?? [],
     };
   }
 
@@ -88,12 +91,13 @@ export class WorkerAppService {
       return 'experience';
     if (t === 'skill' || t === 'skill_certificate' || t === 'skill-certificate')
       return 'skill';
+    if (t === 'resume' || t === 'cv') return 'resume';
     return null;
   }
 
   private docTypeOf(objectKey: string, fallbackEntityType: string): string {
     const m = (objectKey ?? '').match(
-      /worker_doc\/(aadhaar|experience|skill)\//,
+      /worker_doc\/(aadhaar|experience|skill|resume|cv)\//,
     );
     if (m) return m[1];
     if (fallbackEntityType !== 'worker_doc') return fallbackEntityType;
@@ -174,6 +178,11 @@ export class WorkerAppService {
       user.salaryExpectation = body.salaryExpectation;
     if (body.experience !== undefined) user.experience = body.experience;
     if (body.education !== undefined) user.education = body.education;
+    if (body.resumes !== undefined) {
+      user.metadata = { ...(user.metadata || {}), resumes: body.resumes };
+    } else if (body.metadata !== undefined) {
+      user.metadata = { ...(user.metadata || {}), ...body.metadata };
+    }
     // phone is read-only
 
     await this.userRepo.save(user);
@@ -228,6 +237,7 @@ export class WorkerAppService {
   //  DOCUMENTS
   // ════════════════════════════════════════════════════
 
+
   async uploadDocument(userId: string, file: any, type: string) {
     if (!file?.buffer && !file?.size)
       throw new BadRequestException('No file provided');
@@ -236,10 +246,16 @@ export class WorkerAppService {
     const subtype = this.normalizeDocSubtype(type);
     if (!subtype) {
       throw new BadRequestException(
-        `Unknown document type '${type}'. Allowed: aadhaar, experience, skill`,
+        `Unknown document type '${type}'. Allowed: aadhaar, experience, skill, resume`,
       );
     }
-    const allowedMime = ['application/pdf', 'image/jpeg', 'image/png'];
+    const allowedMime = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     if (file.mimetype && !allowedMime.includes(file.mimetype)) {
       throw new BadRequestException(
         `Invalid mime ${file.mimetype}. Allowed ${allowedMime.join(', ')}`,
@@ -311,6 +327,49 @@ export class WorkerAppService {
           uploadedAt: doc.createdAt,
         })),
     };
+  }
+
+  // ════════════════════════════════════════════════════
+  //  RESUMES
+  // ════════════════════════════════════════════════════
+
+  async listResumes(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const meta = user.metadata || {};
+    return { items: Array.isArray(meta.resumes) ? meta.resumes : [] };
+  }
+
+  async saveResume(userId: string, resume: Record<string, any>) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const meta = user.metadata || {};
+    const resumes = Array.isArray(meta.resumes) ? [...meta.resumes] : [];
+    const index = resumes.findIndex((r) => r.id === resume.id);
+    const updatedItem = {
+      ...resume,
+      id: resume.id || Date.now().toString(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (index >= 0) {
+      resumes[index] = { ...resumes[index], ...updatedItem };
+    } else {
+      resumes.unshift(updatedItem);
+    }
+    user.metadata = { ...meta, resumes };
+    await this.userRepo.save(user);
+    return updatedItem;
+  }
+
+  async deleteResume(userId: string, resumeId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const meta = user.metadata || {};
+    const resumes = Array.isArray(meta.resumes) ? [...meta.resumes] : [];
+    const filtered = resumes.filter((r) => r.id !== resumeId);
+    user.metadata = { ...meta, resumes: filtered };
+    await this.userRepo.save(user);
+    return { success: true };
   }
 
   // ════════════════════════════════════════════════════

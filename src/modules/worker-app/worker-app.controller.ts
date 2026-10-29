@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -81,6 +82,28 @@ export class WorkerAppController {
   @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
   async listDocuments(@Req() req: any) {
     return this.workerAppService.listDocuments(req.user.id);
+  }
+
+  // ════════════════════════════════════════════════════
+  //  RESUMES
+  // ════════════════════════════════════════════════════
+
+  @Get('resumes')
+  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
+  async listResumes(@Req() req: any) {
+    return this.workerAppService.listResumes(req.user.id);
+  }
+
+  @Post('resumes')
+  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
+  async saveResume(@Req() req: any, @Body() body: Record<string, any>) {
+    return this.workerAppService.saveResume(req.user.id, body);
+  }
+
+  @Delete('resumes/:id')
+  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
+  async deleteResume(@Req() req: any, @Param('id') id: string) {
+    return this.workerAppService.deleteResume(req.user.id, id);
   }
 
   // ════════════════════════════════════════════════════
