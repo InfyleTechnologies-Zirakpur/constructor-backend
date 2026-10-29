@@ -134,15 +134,13 @@ describe('ReportsService', () => {
             createQueryBuilder: vi.fn(() => ({
               leftJoinAndSelect: vi.fn().mockReturnThis(),
               where: vi.fn().mockReturnThis(),
-              getMany: vi
-                .fn()
-                .mockResolvedValue([
-                  {
-                    id: 'c-1',
-                    companyName: 'BuildCorp',
-                    verificationStatus: 'verified',
-                  },
-                ]),
+              getMany: vi.fn().mockResolvedValue([
+                {
+                  id: 'c-1',
+                  companyName: 'BuildCorp',
+                  verificationStatus: 'verified',
+                },
+              ]),
             })),
           },
         },
@@ -155,16 +153,14 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               take: vi.fn().mockReturnThis(),
-              getMany: vi
-                .fn()
-                .mockResolvedValue([
-                  {
-                    id: 'att-1',
-                    totalMinutes: 480,
-                    overtimeMinutes: 60,
-                    date: '2026-09-09',
-                  },
-                ]),
+              getMany: vi.fn().mockResolvedValue([
+                {
+                  id: 'att-1',
+                  totalMinutes: 480,
+                  overtimeMinutes: 60,
+                  date: '2026-09-09',
+                },
+              ]),
             })),
           },
         },
@@ -178,18 +174,16 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 50000 }),
-              getMany: vi
-                .fn()
-                .mockResolvedValue([
-                  {
-                    id: 'lr-1',
-                    headcount: 10,
-                    category: 'Mason',
-                    totalCost: 8000,
-                    overtimeHours: 2,
-                    date: '2026-09-09',
-                  },
-                ]),
+              getMany: vi.fn().mockResolvedValue([
+                {
+                  id: 'lr-1',
+                  headcount: 10,
+                  category: 'Mason',
+                  totalCost: 8000,
+                  overtimeHours: 2,
+                  date: '2026-09-09',
+                },
+              ]),
             })),
           },
         },
@@ -210,18 +204,16 @@ describe('ReportsService', () => {
               leftJoinAndSelect: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 75000 }),
-              getMany: vi
-                .fn()
-                .mockResolvedValue([
-                  {
-                    id: 'mt-1',
-                    type: 'purchase',
-                    totalCost: 35000,
-                    supplier: 'Ambuja',
-                    date: '2026-09-09',
-                    material: { category: 'cement' },
-                  },
-                ]),
+              getMany: vi.fn().mockResolvedValue([
+                {
+                  id: 'mt-1',
+                  type: 'purchase',
+                  totalCost: 35000,
+                  supplier: 'Ambuja',
+                  date: '2026-09-09',
+                  material: { category: 'cement' },
+                },
+              ]),
             })),
           },
         },
@@ -235,16 +227,14 @@ describe('ReportsService', () => {
               andWhere: vi.fn().mockReturnThis(),
               orderBy: vi.fn().mockReturnThis(),
               getRawOne: vi.fn().mockResolvedValue({ total: 12000 }),
-              getMany: vi
-                .fn()
-                .mockResolvedValue([
-                  {
-                    id: 'exp-1',
-                    amount: 5000,
-                    category: 'Travel',
-                    date: '2026-09-09',
-                  },
-                ]),
+              getMany: vi.fn().mockResolvedValue([
+                {
+                  id: 'exp-1',
+                  amount: 5000,
+                  category: 'Travel',
+                  date: '2026-09-09',
+                },
+              ]),
             })),
           },
         },
@@ -265,23 +255,19 @@ describe('ReportsService', () => {
         {
           provide: getRepositoryToken(Company),
           useValue: {
-            find: vi
-              .fn()
-              .mockResolvedValue([
-                {
-                  id: 'comp-1',
-                  name: 'Acme Infra',
-                  verificationStatus: 'verified',
-                  userId: 'user-comp',
-                },
-              ]),
-            findOne: vi
-              .fn()
-              .mockResolvedValue({
+            find: vi.fn().mockResolvedValue([
+              {
                 id: 'comp-1',
                 name: 'Acme Infra',
+                verificationStatus: 'verified',
                 userId: 'user-comp',
-              }),
+              },
+            ]),
+            findOne: vi.fn().mockResolvedValue({
+              id: 'comp-1',
+              name: 'Acme Infra',
+              userId: 'user-comp',
+            }),
           },
         },
         {

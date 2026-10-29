@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { Job } from './entities/job.entity.js';
 import { SavedJob } from './entities/saved-job.entity.js';
 import { Application } from '../applications/entities/application.entity.js';
 import { Company } from '../companies/entities/company.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CreateJobDto } from './dto/create-jobs.dto.js';
 import { UpdateJobDto, ModerateJobDto } from './dto/update-jobs.dto.js';
 
@@ -23,6 +26,8 @@ interface JobFilters {
 
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
+
   constructor(
     @InjectRepository(Job) private readonly jobRepository: Repository<Job>,
     @InjectRepository(Company)
@@ -31,6 +36,9 @@ export class JobsService {
     private readonly savedJobRepository: Repository<SavedJob>,
     @InjectRepository(Application)
     private readonly applicationRepository: Repository<Application>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -46,6 +54,38 @@ export class JobsService {
 
     if (!company || job.companyId !== company.id) {
       throw new ForbiddenException('You do not have access to this job');
+    }
+  }
+
+  /**
+   * Helper to notify all active job seekers when a job is published.
+   * Catches errors internally so notification failures don't block the caller.
+   */
+  private async notifyJobSeekers(job: Job): Promise<void> {
+    try {
+      const seekers = await this.userRepository.find({
+        where: {
+          role: 'job_seeker',
+          isActive: true,
+          isBlocked: false,
+        },
+        select: { id: true },
+      });
+
+      const seekerIds = seekers.map((s) => s.id);
+      if (seekerIds.length === 0) return;
+
+      await this.notificationsService.notifyNewJobPosted(
+        job.id,
+        job.title,
+        job.location,
+        seekerIds,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to notify job seekers for job ${job.id}: ${err?.message}`,
+        err?.stack,
+      );
     }
   }
 
@@ -66,10 +106,16 @@ export class JobsService {
     const job = this.jobRepository.create({
       ...dto,
       companyId: company.id,
-      status: 'draft',
+      status: dto.status ?? 'published',
     });
 
-    return this.jobRepository.save(job);
+    const savedJob = await this.jobRepository.save(job);
+
+    if (savedJob.status === 'published') {
+      await this.notifyJobSeekers(savedJob);
+    }
+
+    return savedJob;
   }
 
   /**
@@ -255,8 +301,15 @@ export class JobsService {
 
     await this.verifyCompanyOwnership(job, userId);
 
+    const previousStatus = job.status;
     Object.assign(job, dto);
-    return this.jobRepository.save(job);
+    const updatedJob = await this.jobRepository.save(job);
+
+    if (previousStatus !== 'published' && updatedJob.status === 'published') {
+      await this.notifyJobSeekers(updatedJob);
+    }
+
+    return updatedJob;
   }
 
   /**
@@ -279,12 +332,19 @@ export class JobsService {
     const job = await this.jobRepository.findOne({ where: { id } });
     if (!job) throw new NotFoundException('Job not found');
 
+    const previousStatus = job.status;
     job.status = dto.status;
     if (dto.moderationRemarks !== undefined) {
       job.moderationRemarks = dto.moderationRemarks;
     }
 
-    return this.jobRepository.save(job);
+    const savedJob = await this.jobRepository.save(job);
+
+    if (previousStatus !== 'published' && savedJob.status === 'published') {
+      await this.notifyJobSeekers(savedJob);
+    }
+
+    return savedJob;
   }
 
   /**
