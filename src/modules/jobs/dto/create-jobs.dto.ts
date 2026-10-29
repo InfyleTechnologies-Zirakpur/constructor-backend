@@ -37,6 +37,14 @@ export class CreateJobDto {
   workforceRequired?: number;
 
   @IsOptional()
+  @IsString()
+  projectType?: string;
+
+  @IsOptional()
+  @IsString()
+  experienceLevel?: string;
+
+  @IsOptional()
   @IsEnum(['draft', 'published'])
   status?: string;
 }

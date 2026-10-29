@@ -16,6 +16,7 @@ import { CreateJobDto } from './dto/create-jobs.dto.js';
 import { UpdateJobDto, ModerateJobDto } from './dto/update-jobs.dto.js';
 
 interface JobFilters {
+  
   search?: string;
   location?: string;
   minDailyPay?: string;
@@ -107,6 +108,7 @@ export class JobsService {
       ...dto,
       companyId: company.id,
       status: dto.status ?? 'published',
+      dailyPay: dto.compensation ? Math.round(Number(dto.compensation)) : 0,
     });
 
     const savedJob = await this.jobRepository.save(job);
@@ -303,6 +305,9 @@ export class JobsService {
 
     const previousStatus = job.status;
     Object.assign(job, dto);
+    if (dto.compensation !== undefined) {
+      job.dailyPay = Math.round(Number(dto.compensation));
+    }
     const updatedJob = await this.jobRepository.save(job);
 
     if (previousStatus !== 'published' && updatedJob.status === 'published') {

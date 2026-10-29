@@ -13,6 +13,7 @@ import { Company } from '../../companies/entities/company.entity.js';
 export class Job {
   @PrimaryGeneratedColumn('uuid') id: string;
 
+  
   @Column() title: string;
 
   @Column() location: string;
