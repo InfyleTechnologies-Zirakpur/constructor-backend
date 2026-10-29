@@ -46,33 +46,10 @@ const databaseUrl =
 if (!databaseUrl) throw new Error('DATABASE_URL is not set');
 
 const entities = [
-  User,
-  Company,
-  Contractor,
-  Project,
-  ProjectSite,
-  SiteEngineerAssignment,
-  Job,
-  SavedJob,
-  Application,
-  Attendance,
-  LabourRecord,
-  Material,
-  MaterialTransaction,
-  Expense,
-  DailyReport,
-  ReportExport,
-  Document,
-  Notification,
-  AuditLog,
-  DeviceToken,
-  Conversation,
-  Message,
-  Post,
-  PostComment,
-  PostLike,
-  Worker,
-  Payment,
+  User, Company, Contractor, Project, ProjectSite, SiteEngineerAssignment,
+  Job, SavedJob, Application, Attendance, LabourRecord, Material, MaterialTransaction,
+  Expense, DailyReport, ReportExport, Document, Notification, AuditLog, DeviceToken,
+  Conversation, Message, Post, PostComment, PostLike, Worker, Payment, 
 ];
 
 @Module({

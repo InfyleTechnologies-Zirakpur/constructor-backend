@@ -4,11 +4,15 @@ import {
   Body,
   Get,
   Param,
+  Put,
   UseGuards,
   Req,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { SiteEngineersService } from './site-engineers.service.js';
 import { CreateSiteEngineerDto } from './dto/create-site-engineers.dto.js';
+import { UpdateEngineerPasswordDto } from './dto/update-engineer-password.dto.js';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
@@ -63,6 +67,27 @@ export class SiteEngineersController {
   @Roles('site_engineer', 'contractor', 'admin')
   async getStats(@Req() req: any) {
     return this.siteEngineersService.getStats(req.user.id, req.user.role);
+  }
+
+  /**
+   * PUT /site-engineers/:id/password — Contractor (or Admin) sets a new
+   * password for a site engineer. Engineers have no self-service reset.
+   */
+  @Put(':id/password')
+  @HttpCode(HttpStatus.OK)
+  @Roles('contractor', 'admin')
+  async updatePassword(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateEngineerPasswordDto,
+  ) {
+    const { id: requestingUserId, role } = req.user;
+    return this.siteEngineersService.updatePassword(
+      id,
+      dto.password,
+      requestingUserId,
+      role,
+    );
   }
 
   /**

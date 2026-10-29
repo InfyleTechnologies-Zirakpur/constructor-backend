@@ -129,6 +129,7 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   city: string | null;
 
+  // Skills as array (normalized to string[] for Flutter)
   @Column('simple-array', { nullable: true })
   skills: string[] | null;
 

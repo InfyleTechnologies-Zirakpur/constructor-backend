@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -152,9 +152,10 @@ const queueImports = queueEnabled
     CalculatorsService,
     ProjectsService,
     SitesService,
+    // Apply RateLimitGuard globally — disabled in dev via RATE_LIMIT_ENABLED
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: RateLimitGuard,
     },
   ],
 })

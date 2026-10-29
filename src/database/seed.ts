@@ -2,13 +2,31 @@ import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../modules/users/entities/user.entity.js';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 dotenv.config();
+
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  'postgresql://postgres:postgres@localhost:5432/construction_db';
+
+// CockroachDB SSL — same logic as database.module.ts1
+const useSsl =
+  databaseUrl.includes('sslmode=') || databaseUrl.includes('cockroachlabs.cloud');
+let ssl: any = undefined;
+if (useSsl) {
+  const certPath = process.env.APPDATA
+    ? path.join(process.env.APPDATA, 'postgresql', 'root.crt')
+    : path.join(process.cwd(), 'certs', 'root.crt');
+  ssl = fs.existsSync(certPath)
+    ? { rejectUnauthorized: true, ca: fs.readFileSync(certPath).toString() }
+    : { rejectUnauthorized: true };
+}
 
 const AppDataSource = new DataSource({
   type: 'postgres',
-  url:
-    process.env.DATABASE_URL ??
-    'postgresql://postgres:postgres@localhost:5432/construction_db',
+  url: databaseUrl,
+  ...(ssl ? { ssl } : {}),
   entities: [User], // We only need User entity for this script
   synchronize: false,
 });

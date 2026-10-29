@@ -79,25 +79,31 @@ export class WorkerAppService {
     );
   }
 
-  /** Seeker doc kinds sent by Flutter as `type`. */
+  /** Seeker doc kinds sent by Flutter as `type`. Aadhaar is no longer accepted. */
   private normalizeDocSubtype(raw: unknown): string | null {
     const t = (raw ?? '').toString().trim().toLowerCase();
-    if (t === 'aadhaar') return 'aadhaar';
+    if (t === 'aadhaar' || t === 'aadhar') return null;
     if (
       t === 'experience' ||
       t === 'experience_certificate' ||
-      t === 'experience-certificate'
+      t === 'experience-certificate' ||
+      t === 'exp_certificate'
     )
       return 'experience';
-    if (t === 'skill' || t === 'skill_certificate' || t === 'skill-certificate')
+    if (
+      t === 'skill' ||
+      t === 'skill_certificate' ||
+      t === 'skill-certificate' ||
+      t === 'certificate'
+    )
       return 'skill';
-    if (t === 'resume' || t === 'cv') return 'resume';
-    return null;
+    if (t === 'resume' || t === 'cv' || t === 'resumecv') return 'resume';
+    return t.replace(/[^a-z0-9_-]/g, '') || null;
   }
 
   private docTypeOf(objectKey: string, fallbackEntityType: string): string {
     const m = (objectKey ?? '').match(
-      /worker_doc\/(aadhaar|experience|skill|resume|cv)\//,
+      /worker_doc\/(aadhaar|experience|skill|resume)\//,
     );
     if (m) return m[1];
     if (fallbackEntityType !== 'worker_doc') return fallbackEntityType;
@@ -146,7 +152,8 @@ export class WorkerAppService {
     if (!user) throw new NotFoundException('User not found');
 
     // Exclude avatar docs — those are shown via profilePhotoUrl, not as
-    // identity documents (aadhaar / experience / skill).
+    // identity documents (experience / skill). Aadhaar docs are removed
+    // from the seeker flow entirely — hide any legacy rows too.
     const documents = await this.documentRepo.find({
       where: { ownerId: userId },
       order: { createdAt: 'DESC' },
@@ -154,7 +161,11 @@ export class WorkerAppService {
 
     const profile = this.buildWorkerProfile(user);
     profile.documents = documents
-      .filter((doc) => doc.entityType !== 'user_avatar')
+      .filter(
+        (doc) =>
+          doc.entityType !== 'user_avatar' &&
+          this.docTypeOf(doc.objectKey, doc.entityType) !== 'aadhaar',
+      )
       .map((doc) => ({
         id: doc.id,
         type: this.docTypeOf(doc.objectKey, doc.entityType),
@@ -173,7 +184,30 @@ export class WorkerAppService {
     // Map Flutter field names to entity fields
     if (body.name !== undefined) user.fullName = body.name;
     if (body.city !== undefined) user.city = body.city;
-    if (body.skills !== undefined) user.skills = body.skills;
+    if (body.email !== undefined && body.email !== null) {
+      const email = String(body.email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Invalid email address');
+      }
+      const existing = await this.userRepo.findOne({ where: { email } });
+      if (existing && existing.id !== user.id) {
+        throw new ConflictException('Email already registered');
+      }
+      if (user.email !== email) {
+        user.email = email;
+        user.emailVerified = false; // must re-verify after change
+      }
+    }
+    if (body.skills !== undefined) {
+      const skills = (Array.isArray(body.skills) ? body.skills : [])
+        .map((s: any) => String(s ?? '').trim())
+        .filter(Boolean);
+      // Skills are REQUIRED for job seekers — experience stays optional.
+      if (skills.length === 0) {
+        throw new BadRequestException('At least one skill is required');
+      }
+      user.skills = skills;
+    }
     if (body.salaryExpectation !== undefined)
       user.salaryExpectation = body.salaryExpectation;
     if (body.experience !== undefined) user.experience = body.experience;
@@ -184,6 +218,14 @@ export class WorkerAppService {
       user.metadata = { ...(user.metadata || {}), ...body.metadata };
     }
     // phone is read-only
+
+    // Job seekers must always end up with at least one skill.
+    if (
+      user.role === 'job_seeker' &&
+      (!user.skills || user.skills.length === 0)
+    ) {
+      throw new BadRequestException('At least one skill is required');
+    }
 
     await this.userRepo.save(user);
 
@@ -246,7 +288,7 @@ export class WorkerAppService {
     const subtype = this.normalizeDocSubtype(type);
     if (!subtype) {
       throw new BadRequestException(
-        `Unknown document type '${type}'. Allowed: aadhaar, experience, skill, resume`,
+        `Unknown document type '${type}'. Allowed: experience, skill`,
       );
     }
     const allowedMime = [
@@ -274,7 +316,7 @@ export class WorkerAppService {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
     // Subtype in path → Bunny dashboard groups docs as
-    // documents/worker_doc/aadhaar/... , .../experience/... , .../skill/...
+    // documents/worker_doc/aadhaar/... , .../experience/... , .../skill/... , .../resume/...
     const objectKey = `documents/worker_doc/${subtype}/${yyyy}/${mm}/${userId}/${dd}_${base}_${Date.now().toString().slice(-6)}.${ext}`;
 
     // 1. PUT bytes to Bunny FIRST (throws on failure — no phantom rows).
@@ -317,7 +359,11 @@ export class WorkerAppService {
     const pull = this.pullBase();
     return {
       items: documents
-        .filter((doc) => doc.entityType !== 'user_avatar')
+        .filter(
+          (doc) =>
+            doc.entityType !== 'user_avatar' &&
+            this.docTypeOf(doc.objectKey, doc.entityType) !== 'aadhaar',
+        )
         .map((doc) => ({
           id: doc.id,
           type: this.docTypeOf(doc.objectKey, doc.entityType),

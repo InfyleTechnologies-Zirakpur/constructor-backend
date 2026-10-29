@@ -320,31 +320,33 @@ export class DocumentsService {
   }
 
   // compat for seeker api.md POST /documents {file, type}
-  // Flutter sends type ∈ {aadhaar, experience, skill,
+  // Flutter sends type ∈ {experience, skill,
   // experience_certificate, skill_certificate, worker_doc}.
+  // Aadhaar is NO LONGER accepted in the seeker flow.
   // All map to entityType worker_doc; the subtype is preserved in the
   // storage key AND returned as `type` so profile fetch can tell
-  // aadhaar / experience / skill apart.
+  // experience / skill apart.
   async uploadCompat(file: any, userId: string, type: string) {
     const raw = (type ?? 'worker_doc')
       .toString()
       .replace(/"/g, '')
       .trim()
       .toLowerCase();
+    if (raw === 'aadhaar' || raw === 'aadhar') {
+      throw new BadRequestException(
+        'Aadhaar upload is no longer allowed. Allowed types: experience, skill',
+      );
+    }
     const subtype =
-      raw === 'aadhaar'
-        ? 'aadhaar'
-        : raw === 'experience' ||
-            raw === 'experience_certificate' ||
-            raw === 'experience-certificate'
-          ? 'experience'
-          : raw === 'skill' ||
-              raw === 'skill_certificate' ||
-              raw === 'skill-certificate'
-            ? 'skill'
-            : raw === 'resume' || raw === 'cv'
-              ? 'resume'
-              : null;
+      raw === 'experience' ||
+      raw === 'experience_certificate' ||
+      raw === 'experience-certificate'
+        ? 'experience'
+        : raw === 'skill' ||
+            raw === 'skill_certificate' ||
+            raw === 'skill-certificate'
+          ? 'skill'
+          : null;
     const saved: any = await this.upload(file, userId, {
       entityType: 'worker_doc',
       entityId: userId,

@@ -35,6 +35,39 @@ export class CompaniesService {
     });
   }
 
+  /**
+   * GET /companies/user/:userId
+   * Full company profile behind a user (author) id — used when tapping a
+   * company that posted in the feed. Never returns password/hash fields.
+   */
+  async findByUserId(userId: string): Promise<Record<string, any>> {
+    const company = await this.companiesRepository.findOne({
+      where: { userId },
+      relations: { user: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company profile not found for this user');
+    }
+
+    const { user, registrationNumber, panNumber, documentUrls, ...rest } =
+      company as Company & Record<string, any>;
+    return {
+      ...rest,
+      owner: user
+        ? {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? null,
+            avatarUrl: user.avatarUrl ?? null,
+            role: user.role,
+          }
+        : null,
+    };
+  }
+
   async update(
     id: string,
     userId: string,
