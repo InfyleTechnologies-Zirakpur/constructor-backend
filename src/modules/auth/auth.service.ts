@@ -1,6 +1,8 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -18,9 +20,35 @@ import type { RegisterUserDto } from './dto/register-user.dto.js';
 import type { RequestOtpDto } from './dto/request-otp.dto.js';
 import type { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import type { ResetPasswordDto } from './dto/reset-password.dto.js';
+import type { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import type { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import type { SignupSendOtpDto } from './dto/signup-send-otp.dto.js';
+import type { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto.js';
+import type { SetPasswordDto } from './dto/set-password.dto.js';
+import type { CompanySignupSendOtpDto } from './dto/company-signup-send-otp.dto.js';
+import type { CompanySignupVerifyOtpDto } from './dto/company-signup-verify-otp.dto.js';
 import type { UserRole } from '../../common/types/role.enum.js';
-import { randomBytes } from 'crypto';
+import {
+  sendOtpSms,
+  normalizePhone,
+  isValidIndianPhone,
+} from '../../common/utils/send-sms.js';
+import { sendOtpEmail } from '../../common/utils/send-email.js';
+import { randomBytes, randomInt } from 'crypto';
+
+/** JWT purpose claim for the phone-verified → set-password signup window. */
+const SIGNUP_TOKEN_PURPOSE = 'job-seeker-signup';
+
+/** JWT purpose claim for the email-verified → set-password company signup. */
+const COMPANY_SIGNUP_TOKEN_PURPOSE = 'company-signup';
+
+/**
+ * Sentinel passwordHash for pending-signup accounts (password not set yet).
+ * Stored instead of NULL so the flow also works on DBs where passwordHash
+ * is (incorrectly) NOT NULL. Never matches bcrypt.compare, and every
+ * "is a password actually set?" check treats it as absent.
+ */
+const PENDING_PASSWORD_HASH = '!pending';
 
 @Injectable()
 export class AuthService {
@@ -102,13 +130,13 @@ export class AuthService {
   }
 
   /**
-   * Single source of truth for "has this phone number finished
+   * Single source of truth for "has this job seeker finished
    * Create Profile?".
    *
-   * requestOtp auto-creates every unknown phone with
-   * fullName='Job Seeker' + empty city/skills — that placeholder must
-   * NOT count as a complete profile, otherwise a brand-new number
-   * (e.g. 1234567891) lands straight on HomePage.
+   * Phone-OTP signup (send-otp → verify-otp → set-password) stores
+   * name + skills only — the seeker must still fill daily wage
+   * (salaryExpectation) and preferred location (city) on the profile
+   * screen. Until ALL three exist, isNewUser=true → Create Profile.
    */
   private isWorkerProfileComplete(user: User): boolean {
     const rawName = (user.fullName ?? '').trim();
@@ -123,25 +151,14 @@ export class AuthService {
       'user',
     ]);
     if (PLACEHOLDERS.has(lower)) return false;
-    // Auto-generated synthetic email means profile was never filled.
-    const email = (user.email ?? '').toLowerCase();
-    const isSyntheticEmail =
-      email.endsWith('@buildhire.app') &&
-      email.startsWith((user.phone ?? '').toLowerCase());
-    // Real (non-synthetic) registration with a real name → complete,
-    // even if city/skills were skipped.
-    if (!isSyntheticEmail) return true;
-    // Synthetic OTP auto-account: require at least one real profile field
-    // (city / skills / salary) beyond the 'Job Seeker' placeholder.
+
     const city = ((user as any).city ?? '').toString().trim();
     const skills = (user as any).skills as unknown;
     const salary = ((user as any).salaryExpectation ?? '').toString().trim();
     const hasCity = city !== '' && city.toLowerCase() !== 'null';
     const hasSkills = Array.isArray(skills) && skills.length > 0;
     const hasSalary = salary !== '' && salary.toLowerCase() !== 'null';
-    if (isSyntheticEmail && !hasCity && !hasSkills && !hasSalary) return false;
-    if (!hasCity && !hasSkills && !hasSalary) return false;
-    return true;
+    return hasCity && hasSkills && hasSalary;
   }
 
   // ════════════════════════════════════════════════════
@@ -184,10 +201,10 @@ export class AuthService {
       );
     }
 
-    // NOTE: SMS now via Firebase Phone Auth (client SDK) — this endpoint kept for dev fallback.
-    // In Firebase flow, client calls Firebase SDK directly, so this is not used.
-    // We still generate a dev OTP for curl testing when Firebase not used.
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // NOTE: Firebase Phone Auth (client SDK) is the app's primary path;
+    // this endpoint also sends a real SMS via ApiTxt so OTP login /
+    // forgot-password work without Firebase.
+    const otp = randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
 
     // Expires in 10 minutes
@@ -198,15 +215,31 @@ export class AuthService {
     user.otpExpiresAt = expiresAt;
     await this.userRepository.save(user);
 
-    // Firebase will send SMS in prod — only log OTP in non-production environments
-    if (process.env.NODE_ENV !== 'production') {
+    try {
+      await sendOtpSms(dto.phone, otp);
+    } catch (e: any) {
+      user.otpHash = null;
+      user.otpExpiresAt = null;
+      await this.userRepository.save(user);
+      this.logger.error(`OTP SMS failed for ${dto.phone}: ${e?.message}`);
+      // Provider cooldowns (429) pass through with their real message.
+      if (e instanceof HttpException) throw e;
+      throw new BadGatewayException(
+        e?.message || 'Failed to send OTP. Please try again.',
+      );
+    }
+
+    // Only log OTP in non-production (dry-run / dev testing)
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.SMS_DRY_RUN === 'true'
+    ) {
       this.logger.debug(`[DEV] OTP for ${dto.phone}: ${otp}`);
     }
 
     return {
       otpSent: true,
-      message:
-        'OTP sent successfully — use Firebase Phone Auth in app, dev OTP in log',
+      message: 'OTP sent successfully',
       isNewUser,
       phone: dto.phone,
     };
@@ -347,18 +380,577 @@ export class AuthService {
     };
   }
 
+  // ════════════════════════════════════════════════════
+  //  JOB SEEKER SIGNUP (name + phone OTP → verify → set password)
+  // ════════════════════════════════════════════════════
+
   /**
-   * POST /auth/reset-password
-   * Flutter sends: { "phone": "9876543210", "otp": "123456", "newPassword": "..." }
-   * Returns: { changed: true }
+   * POST /auth/signup/send-otp
+   * Flutter sends: { name, lastName, phone, role: "job_seeker", skill: [...] }
+   * Skills are REQUIRED, experience is optional (collected later on profile).
+   * Creates (or refreshes) the pending job-seeker row and texts an OTP via ApiTxt.
    */
-  async resetPassword(dto: ResetPasswordDto) {
-    const user = await this.userRepository.findOne({
-      where: { phone: dto.phone },
-    });
+  async signupSendOtp(dto: SignupSendOtpDto) {
+    const phone = normalizePhone(dto.phone);
+    if (!isValidIndianPhone(phone)) {
+      throw new BadRequestException('Enter a valid 10-digit mobile number');
+    }
+
+    const skills = (dto.skill ?? [])
+      .map((s) => String(s).trim())
+      .filter(Boolean);
+    if (skills.length === 0) {
+      throw new BadRequestException('At least one skill is required');
+    }
+
+    const existing = await this.userRepository.findOne({ where: { phone } });
+
+    // Fully registered number (real password already set) must use login instead.
+    if (
+      existing?.passwordHash &&
+      existing.passwordHash !== PENDING_PASSWORD_HASH
+    ) {
+      throw new ConflictException(
+        'This mobile number is already registered. Please login.',
+      );
+    }
+
+    const fullName = `${dto.name.trim()} ${dto.lastName.trim()}`.trim();
+    const metadata = {
+      ...(((existing as any)?.metadata as Record<string, any>) ?? {}),
+      firstName: dto.name.trim(),
+      lastName: dto.lastName.trim(),
+    };
+    const user: User = existing
+      ? Object.assign(existing, {
+          fullName,
+          skills,
+          role: dto.role ?? existing.role,
+          metadata,
+        })
+      : (this.userRepository.create({
+          fullName,
+          email: null,
+          phone,
+          passwordHash: PENDING_PASSWORD_HASH,
+          role: dto.role ?? 'job_seeker',
+          skills,
+          metadata,
+        } as any) as unknown as User);
+    await this.userRepository.save(user);
+
+    const otp = randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+    user.otpHash = otpHash;
+    user.otpExpiresAt = expiresAt;
+    await this.userRepository.save(user);
+
+    try {
+      await sendOtpSms(phone, otp);
+    } catch (e: any) {
+      user.otpHash = null;
+      user.otpExpiresAt = null;
+      await this.userRepository.save(user);
+      this.logger.error(`Signup OTP SMS failed for ${phone}: ${e?.message}`);
+      // Provider cooldowns (429) pass through with their real message.
+      if (e instanceof HttpException) throw e;
+      throw new BadGatewayException(
+        e?.message || 'Failed to send OTP. Please try again.',
+      );
+    }
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.SMS_DRY_RUN === 'true'
+    ) {
+      this.logger.debug(`[DEV] Signup OTP for ${phone}: ${otp}`);
+    }
+
+    return {
+      otpSent: true,
+      message: 'OTP sent successfully',
+      phone,
+    };
+  }
+
+  /**
+   * POST /auth/signup/verify-otp
+   * Flutter sends: { phone, otp }
+   * Verifies the phone only — no login yet. Returns a short-lived
+   * signupToken the client must present to POST /auth/signup/set-password.
+   */
+  async signupVerifyOtp(dto: SignupVerifyOtpDto) {
+    const phone = normalizePhone(dto.phone);
+    const user = await this.userRepository.findOne({ where: { phone } });
 
     if (!user || !user.otpHash || !user.otpExpiresAt) {
       throw new BadRequestException('Invalid or expired OTP');
+    }
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+    if (user.passwordHash && user.passwordHash !== PENDING_PASSWORD_HASH) {
+      throw new ConflictException(
+        'This mobile number is already registered. Please login.',
+      );
+    }
+    if (new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const isOtpValid = await bcrypt.compare(dto.otp, user.otpHash);
+    if (!isOtpValid) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    (user as any).phoneVerified = true;
+    user.otpHash = null;
+    user.otpExpiresAt = null;
+    await this.userRepository.save(user);
+
+    // Short-lived token proving the phone was verified for THIS signup.
+    const signupToken = await this.jwtService.signAsync(
+      { sub: user.id, phone, purpose: SIGNUP_TOKEN_PURPOSE },
+      { expiresIn: '30m' },
+    );
+
+    return {
+      verified: true,
+      message: 'Phone number verified. Please set your password.',
+      phone,
+      signupToken,
+    };
+  }
+
+  /**
+   * POST /auth/signup/set-password
+   * Flutter sends: { signupToken, password, confirmPassword }
+   * Sets the strong password on the phone-verified pending account and
+   * logs the user in (tokens + worker profile, same shape as verify-otp).
+   */
+  async setPassword(dto: SetPasswordDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('Password and confirm password do not match');
+    }
+
+    let decoded: any;
+    try {
+      decoded = await this.jwtService.verifyAsync(dto.signupToken);
+    } catch {
+      throw new UnauthorizedException(
+        'Phone verification expired. Please verify your number again.',
+      );
+    }
+    if (decoded?.purpose !== SIGNUP_TOKEN_PURPOSE || !decoded?.sub) {
+      throw new UnauthorizedException('Invalid signup token');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: decoded.sub },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+    if (user.passwordHash && user.passwordHash !== PENDING_PASSWORD_HASH) {
+      throw new ConflictException(
+        'Password already set for this account. Please login.',
+      );
+    }
+    if (!(user as any).phoneVerified) {
+      throw new UnauthorizedException('Phone number is not verified');
+    }
+
+    // Email is NOT collected here — job seekers add it later via PUT /profile.
+    user.passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.userRepository.save(user);
+
+    const tokens = await this.generateTokens(user);
+    // Slim response — Flutter proceeds straight to profile creation
+    // (daily wage, preferred location, documents) after password setup.
+    return {
+      success: true,
+      message: 'Success',
+      data: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: 604800,
+      },
+    };
+  }
+
+  // ════════════════════════════════════════════════════
+  //  COMPANY SIGNUP (name + email OTP → verify → set password)
+  //  Then the client creates the company profile via POST /companies.
+  // ════════════════════════════════════════════════════
+
+  /**
+   * POST /auth/signup/company/send-otp
+   * Payload: { name, email, role: "company" }
+   * Creates/refreshes a pending company account and emails a 6-digit OTP.
+   */
+  async companySignupSendOtp(dto: CompanySignupSendOtpDto) {
+    const email = String(dto.email ?? '').trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const existing = await this.userRepository.findOne({ where: { email } });
+
+    if (existing) {
+      if (existing.role !== 'company') {
+        throw new ConflictException(
+          'This email is already registered with a different account type.',
+        );
+      }
+      if (
+        existing.passwordHash &&
+        existing.passwordHash !== PENDING_PASSWORD_HASH
+      ) {
+        throw new ConflictException(
+          'This email is already registered. Please login.',
+        );
+      }
+    }
+
+    const user: User = existing
+      ? Object.assign(existing, {
+          fullName: dto.name?.trim() ? dto.name.trim() : existing.fullName,
+          role: 'company',
+        })
+      : (this.userRepository.create({
+          fullName: dto.name?.trim() || 'Company',
+          email,
+          phone: null,
+          passwordHash: PENDING_PASSWORD_HASH,
+          role: 'company',
+        } as any) as unknown as User);
+    await this.userRepository.save(user);
+
+    const otp = randomInt(100000, 1000000).toString();
+    user.otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+    user.otpExpiresAt = expiresAt;
+    await this.userRepository.save(user);
+
+    try {
+      await sendOtpEmail(email, otp, {
+        name: user.fullName,
+        expiryMinutes: 10,
+      });
+    } catch (e: any) {
+      user.otpHash = null;
+      user.otpExpiresAt = null;
+      await this.userRepository.save(user);
+      this.logger.error(`Company signup OTP email failed for ${email}: ${e?.message}`);
+      if (e instanceof HttpException) throw e;
+      throw new BadGatewayException(
+        e?.message || 'Failed to send OTP. Please try again.',
+      );
+    }
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.EMAIL_DRY_RUN === 'true'
+    ) {
+      this.logger.debug(`[DEV] Company signup OTP for ${email}: ${otp}`);
+    }
+
+    return {
+      otpSent: true,
+      message: 'OTP sent to your email',
+      email,
+    };
+  }
+
+  /**
+   * POST /auth/signup/company/verify-otp
+   * Payload: { email, otp }
+   * Verifies the email only. Returns emailVerified + a short-lived
+   * signupToken required by /auth/signup/company/set-password.
+   */
+  async companySignupVerifyOtp(dto: CompanySignupVerifyOtpDto) {
+    const email = String(dto.email ?? '').trim().toLowerCase();
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (
+      !user ||
+      user.role !== 'company' ||
+      !user.otpHash ||
+      !user.otpExpiresAt
+    ) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+    if (user.passwordHash && user.passwordHash !== PENDING_PASSWORD_HASH) {
+      throw new ConflictException(
+        'This email is already registered. Please login.',
+      );
+    }
+    if (new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const isOtpValid = await bcrypt.compare(dto.otp, user.otpHash);
+    if (!isOtpValid) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    user.emailVerified = true;
+    user.otpHash = null;
+    user.otpExpiresAt = null;
+    await this.userRepository.save(user);
+
+    const signupToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email,
+        purpose: COMPANY_SIGNUP_TOKEN_PURPOSE,
+      },
+      { expiresIn: '30m' },
+    );
+
+    return {
+      verified: true,
+      emailVerified: true,
+      message: 'Email verified. Please set your password.',
+      email,
+      signupToken,
+    };
+  }
+
+  /**
+   * POST /auth/signup/company/set-password
+   * Payload: { signupToken, password, confirmPassword }
+   * Sets the strong password on the email-verified pending account, logs
+   * the user in, and tells the client to continue with the company
+   * profile form (POST /companies with the returned accessToken).
+   */
+  async companySignupSetPassword(dto: SetPasswordDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException(
+        'Password and confirm password do not match',
+      );
+    }
+
+    let decoded: any;
+    try {
+      decoded = await this.jwtService.verifyAsync(dto.signupToken);
+    } catch {
+      throw new UnauthorizedException(
+        'Email verification expired. Please verify your email again.',
+      );
+    }
+    if (decoded?.purpose !== COMPANY_SIGNUP_TOKEN_PURPOSE || !decoded?.sub) {
+      throw new UnauthorizedException('Invalid signup token');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: decoded.sub },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+    if (user.passwordHash && user.passwordHash !== PENDING_PASSWORD_HASH) {
+      throw new ConflictException(
+        'Password already set for this account. Please login.',
+      );
+    }
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Email is not verified');
+    }
+
+    user.passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.userRepository.save(user);
+
+    const tokens = await this.generateTokens(user);
+
+    return {
+      success: true,
+      message: 'Password set successfully',
+      data: {
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone ?? null,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          phoneVerified: user.phoneVerified,
+        },
+        emailVerified: true,
+        nextStep: 'company_profile',
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: 604800,
+      },
+    };
+  }
+
+  // ════════════════════════════════════════════════════
+  //  FORGOT / RESET PASSWORD (role-aware)
+  //  job_seeker          → phone + SMS OTP (ApiTxt)
+  //  company / contractor → email + OTP (Unitpost)
+  //  site_engineer       → contractor sets the password (no self-service)
+  // ════════════════════════════════════════════════════
+
+  /**
+   * POST /auth/forgot-password
+   * method: "phone" → job seeker, SMS OTP
+   * method: "email" → company / contractor, email OTP via Unitpost
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    if (dto.method === 'phone') {
+      const phone = normalizePhone(dto.phone);
+      if (!isValidIndianPhone(phone)) {
+        throw new BadRequestException('Enter a valid 10-digit mobile number');
+      }
+      const user = await this.userRepository.findOne({ where: { phone } });
+      // Generic message — no account enumeration.
+      if (!user || user.role !== 'job_seeker') {
+        return this.forgotPasswordGenericResponse('phone', phone);
+      }
+      if ((user as any).isBlocked) {
+        throw new UnauthorizedException('Account is blocked');
+      }
+
+      await this.issueResetOtp(user);
+      try {
+        await sendOtpSms(phone, (user as any).__otpPlain);
+      } catch (e: any) {
+        await this.clearResetOtp(user);
+        this.logger.error(`Forgot-password SMS failed for ${phone}: ${e?.message}`);
+        if (e instanceof HttpException) throw e;
+        throw new BadGatewayException(
+          e?.message || 'Failed to send OTP. Please try again.',
+        );
+      }
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        process.env.SMS_DRY_RUN === 'true'
+      ) {
+        this.logger.debug(`[DEV] Reset OTP for ${phone}: ${(user as any).__otpPlain}`);
+      }
+      return this.forgotPasswordGenericResponse('phone', phone);
+    }
+
+    // method === 'email' — company / contractor
+    const email = dto.email?.trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException('Email is required for email login');
+    }
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (
+      !user ||
+      (user.role !== 'company' && user.role !== 'contractor')
+    ) {
+      return this.forgotPasswordGenericResponse('email', email);
+    }
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
+    }
+
+    await this.issueResetOtp(user);
+    try {
+      await sendOtpEmail(email, (user as any).__otpPlain, {
+        name: user.fullName,
+        expiryMinutes: 10,
+      });
+    } catch (e: any) {
+      await this.clearResetOtp(user);
+      this.logger.error(`Forgot-password email failed for ${email}: ${e?.message}`);
+      if (e instanceof HttpException) throw e;
+      throw new BadGatewayException(
+        e?.message || 'Failed to send OTP. Please try again.',
+      );
+    }
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.EMAIL_DRY_RUN === 'true'
+    ) {
+      this.logger.debug(`[DEV] Reset OTP for ${email}: ${(user as any).__otpPlain}`);
+    }
+    return this.forgotPasswordGenericResponse('email', email);
+  }
+
+  /** Same shape regardless of whether the account exists (no enumeration). */
+  private forgotPasswordGenericResponse(
+    method: 'phone' | 'email',
+    identifier: string,
+  ) {
+    return {
+      otpSent: true,
+      message: 'If an account exists, an OTP has been sent',
+      method,
+      ...(method === 'phone' ? { phone: identifier } : { email: identifier }),
+    };
+  }
+
+  /** Generates a 6-digit OTP, stores its hash + 10-min expiry, keeps plain on a transient field. */
+  private async issueResetOtp(user: User) {
+    const otp = randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+    user.otpHash = otpHash;
+    user.otpExpiresAt = expiresAt;
+    await this.userRepository.save(user);
+    (user as any).__otpPlain = otp; // transient — never saved
+  }
+
+  private async clearResetOtp(user: User) {
+    user.otpHash = null;
+    user.otpExpiresAt = null;
+    await this.userRepository.save(user);
+  }
+
+  /**
+   * POST /auth/reset-password
+   * job_seeker:          { method: "phone", phone, otp, newPassword }
+   * company / contractor: { method: "email", email, otp, newPassword }
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const user =
+      dto.method === 'phone'
+        ? await this.userRepository.findOne({
+            where: { phone: normalizePhone(dto.phone) },
+          })
+        : await this.userRepository.findOne({
+            where: { email: dto.email?.trim().toLowerCase() },
+          });
+
+    if (!user || !user.otpHash || !user.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Role guards per method — a company cannot reset via phone, etc.
+    if (dto.method === 'phone' && user.role !== 'job_seeker') {
+      throw new BadRequestException(
+        'Use the email method to reset the password for this account',
+      );
+    }
+    if (
+      dto.method === 'email' &&
+      user.role !== 'company' &&
+      user.role !== 'contractor'
+    ) {
+      throw new BadRequestException(
+        'Use the phone method to reset the password for this account',
+      );
+    }
+
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Account is blocked');
     }
 
     if (new Date() > user.otpExpiresAt) {
@@ -374,10 +966,16 @@ export class AuthService {
     user.otpHash = null;
     user.otpExpiresAt = null;
     user.refreshTokenHash = null;
+    // Reset also bumps tokenVersion so all existing sessions die.
+    const currentVersionReset = Number((user as any).tokenVersion) || 0;
+    (user as any).tokenVersion =
+      (currentVersionReset < 0 || currentVersionReset > 1000000000
+        ? 0
+        : currentVersionReset) + 1;
 
     await this.userRepository.save(user);
 
-    return { changed: true };
+    return { changed: true, message: 'Password reset successfully' };
   }
 
   // ════════════════════════════════════════════════════
@@ -456,8 +1054,21 @@ export class AuthService {
   }
 
   async login(dto: LoginUserDto) {
+    // method: "email" → email + password, "phone" → phone + password
+    const identifier =
+      dto.method === 'email'
+        ? dto.email?.trim().toLowerCase()
+        : dto.phone?.trim();
+    if (!identifier) {
+      throw new BadRequestException(
+        dto.method === 'email'
+          ? 'Email is required for email login'
+          : 'Phone is required for phone login',
+      );
+    }
+
     const user = await this.userRepository.findOne({
-      where: { email: dto.email },
+      where: dto.method === 'email' ? { email: identifier } : { phone: identifier },
     });
 
     // Use the same generic error for both user-not-found and wrong password
@@ -476,7 +1087,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is locked. Try later');
     }
 
-    if (!user.passwordHash) {
+    if (!user.passwordHash || user.passwordHash === PENDING_PASSWORD_HASH) {
       throw new UnauthorizedException('Password not set. Use OTP login');
     }
     const isPasswordValid = await bcrypt.compare(
@@ -507,6 +1118,10 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
+    // Authoritative profile-completeness so the app routes straight to
+    // Home for finished profiles instead of re-showing Create Profile.
+    const isProfileComplete = this.isWorkerProfileComplete(user);
+
     return {
       user: {
         id: user.id,
@@ -520,8 +1135,11 @@ export class AuthService {
         emailVerified: (user as any).emailVerified,
         phoneVerified: (user as any).phoneVerified,
         policy: (user as any).policy ?? null,
+        profileCompleted: isProfileComplete,
         createdAt: user.createdAt,
       },
+      isProfileComplete,
+      isNewUser: !isProfileComplete,
       ...tokens,
     };
   }

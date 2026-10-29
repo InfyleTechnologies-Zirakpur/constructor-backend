@@ -70,6 +70,13 @@ export class CompaniesController {
     return result;
   }
 
+  @Get('user/:userId')
+  @Roles('admin', 'company', 'job_seeker')
+  async findByUserId(@Param('userId') userId: string) {
+    const data = await this.companiesService.findByUserId(userId);
+    return { data };
+  }
+
   @Get(':id')
   @Roles('admin')
   async findOne(@Param('id') id: string) {

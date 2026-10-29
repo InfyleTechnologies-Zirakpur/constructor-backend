@@ -42,7 +42,7 @@ export class PostsController {
   /**
    * GET /posts — Public Home Feed with optional JWT authentication.
    * Public users, Job Seekers, Companies, and Admins can access this endpoint.
-   * Admin receives author information. Non-admin users do not receive author info.
+   * Every response includes a display-safe author (id, name, role, avatar).
    */
   @Get()
   @UseGuards(OptionalJwtAuthGuard)

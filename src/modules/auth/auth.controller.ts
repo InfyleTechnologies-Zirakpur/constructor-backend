@@ -17,7 +17,13 @@ import { RegisterUserDto } from './dto/register-user.dto.js';
 import { RequestOtpDto } from './dto/request-otp.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { SignupSendOtpDto } from './dto/signup-send-otp.dto.js';
+import { SignupVerifyOtpDto } from './dto/signup-verify-otp.dto.js';
+import { SetPasswordDto } from './dto/set-password.dto.js';
+import { CompanySignupSendOtpDto } from './dto/company-signup-send-otp.dto.js';
+import { CompanySignupVerifyOtpDto } from './dto/company-signup-verify-otp.dto.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 
@@ -60,6 +66,81 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  // ════════════════════════════════════════════════════
+  //  JOB SEEKER SIGNUP (phone OTP → verify → set password)
+  // ════════════════════════════════════════════════════
+
+  /**
+   * POST /auth/signup/send-otp
+   * Payload: { name, lastName, phone, role: "job_seeker", skill: [...] }
+   * Skills required; experience optional (later on profile).
+   * Rate limited to 5 requests per minute to prevent SMS flooding.
+   */
+  @Post('signup/send-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 5 } })
+  async signupSendOtp(@Body() dto: SignupSendOtpDto) {
+    return this.authService.signupSendOtp(dto);
+  }
+
+  /**
+   * POST /auth/signup/verify-otp — Verify phone OTP, returns short-lived signupToken.
+   */
+  @Post('signup/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  async signupVerifyOtp(@Body() dto: SignupVerifyOtpDto) {
+    return this.authService.signupVerifyOtp(dto);
+  }
+
+  /**
+   * POST /auth/signup/set-password
+   * Payload: { signupToken, password, confirmPassword } — strong password required.
+   * Sets the password and logs the user in (returns tokens + worker profile).
+   */
+  @Post('signup/set-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  async setPassword(@Body() dto: SetPasswordDto) {
+    return this.authService.setPassword(dto);
+  }
+
+  /**
+   * POST /auth/signup/company/send-otp
+   * Payload: { name, email, role: "company" }
+   * Sends email OTP for company registration.
+   */
+  @Post('signup/company/send-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 5 } })
+  async companySignupSendOtp(@Body() dto: CompanySignupSendOtpDto) {
+    return this.authService.companySignupSendOtp(dto);
+  }
+
+  /**
+   * POST /auth/signup/company/verify-otp
+   * Payload: { email, otp } — returns signupToken + emailVerified: true
+   */
+  @Post('signup/company/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  async companySignupVerifyOtp(@Body() dto: CompanySignupVerifyOtpDto) {
+    return this.authService.companySignupVerifyOtp(dto);
+  }
+
+  /**
+   * POST /auth/signup/company/set-password
+   * Payload: { signupToken, password, confirmPassword }
+   * Requires email to be verified. Returns tokens + nextStep: 'company_profile'.
+   * Create company profile via POST /companies (auth required).
+   */
+  @Post('signup/company/set-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ auth: { ttl: 60000, limit: 10 } })
+  async companySignupSetPassword(@Body() dto: SetPasswordDto) {
+    return this.authService.companySignupSetPassword(dto);
+  }
+
   /**
    * POST /auth/request-otp — Send OTP to a phone number.
    * Rate limited to 5 requests per minute to prevent SMS flooding.
@@ -83,19 +164,22 @@ export class AuthController {
   }
 
   /**
-   * POST /auth/forgot-password — Request OTP for password reset.
-   * Rate limited to 5 attempts per minute.
+   * POST /auth/forgot-password — Role-aware OTP for password reset.
+   * job_seeker: method "phone" → SMS OTP (ApiTxt)
+   * company/contractor: method "email" → email OTP (Unitpost)
+   * Site engineers: contractor resets the password — no self-service.
    */
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @Throttle({ auth: { ttl: 60000, limit: 5 } })
-  async forgotPassword(@Body() dto: RequestOtpDto) {
-    return this.authService.requestOtp(dto);
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   /**
-   * POST /auth/reset-password — Reset password using phone + OTP.
-   * Rate limited to 5 attempts per minute.
+   * POST /auth/reset-password — Verify OTP + set new password.
+   * job_seeker: { method: "phone", phone, otp, newPassword }
+   * company/contractor: { method: "email", email, otp, newPassword }
    */
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)

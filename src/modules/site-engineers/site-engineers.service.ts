@@ -194,6 +194,61 @@ export class SiteEngineersService {
   }
 
   /**
+   * Contractor (or Admin) sets a new password for a site engineer.
+   * Site engineers have no self-service forgot-password — the contractor
+   * updates it here (POST /site-engineers/:id/password).
+   */
+  async updatePassword(
+    engineerId: string,
+    newPassword: string,
+    requestingUserId: string,
+    requestingRole: string,
+  ) {
+    const engineer = await this.userRepository.findOne({
+      where: { id: engineerId, role: 'site_engineer' },
+    });
+    if (!engineer) {
+      throw new NotFoundException('Site engineer not found');
+    }
+
+    if (requestingRole === 'contractor') {
+      const contractor = await this.contractorRepository.findOne({
+        where: { userId: requestingUserId },
+      });
+      if (!contractor) {
+        throw new NotFoundException('Contractor profile not found');
+      }
+      const assignment = await this.assignmentRepository
+        .createQueryBuilder('assignment')
+        .innerJoin('assignment.site', 'site')
+        .innerJoin('site.project', 'project')
+        .where('assignment.userId = :engineerId', { engineerId })
+        .andWhere('project.contractorId = :contractorId', {
+          contractorId: contractor.id,
+        })
+        .andWhere('assignment.isActive = :isActive', { isActive: true })
+        .getOne();
+      if (!assignment) {
+        throw new ForbiddenException(
+          'You can only update passwords of engineers assigned to your sites',
+        );
+      }
+    }
+
+    engineer.passwordHash = await bcrypt.hash(newPassword, 10);
+    // Kill all existing sessions for the engineer.
+    const currentVersion = Number((engineer as any).tokenVersion) || 0;
+    (engineer as any).tokenVersion =
+      (currentVersion < 0 || currentVersion > 1000000000
+        ? 0
+        : currentVersion) + 1;
+    engineer.refreshTokenHash = null;
+    await this.userRepository.save(engineer);
+
+    return { changed: true, message: 'Password updated successfully' };
+  }
+
+  /**
    * Get an engineer's profile and active assignments.
    * Access is constrained: Admin can view any, Contractor can view if the engineer is assigned to their sites, Engineer can view themselves.
    */

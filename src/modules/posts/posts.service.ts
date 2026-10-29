@@ -499,18 +499,18 @@ export class PostsService implements OnModuleInit {
       updatedAt: post.updatedAt,
     };
 
-    // CRITICAL SECURITY RULE:
-    // Only ADMIN receives author details.
-    // For Company, Job Seeker, and Anonymous users: DO NOT expose author or authorRole.
-    if (currentUser?.role === 'admin') {
-      base.author = {
-        id: post.author?.id ?? post.authorId,
-        name: post.author?.fullName ?? 'Unknown',
-        fullName: post.author?.fullName ?? 'Unknown',
-        role: post.author?.role ?? 'unknown',
-        avatarUrl: post.author?.avatarUrl ?? null,
-      };
-    }
+    // Author is shown on the feed for ALL users (public feed requirement).
+    // Exposed fields are display-only: id/name/role/avatar — never email,
+    // phone, or any other private user data. id + role let the app open
+    // e.g. GET /companies/user/:userId for company authors.
+    base.authorId = post.author?.id ?? post.authorId;
+    base.author = {
+      id: post.author?.id ?? post.authorId,
+      name: post.author?.fullName ?? 'Unknown',
+      fullName: post.author?.fullName ?? 'Unknown',
+      role: post.author?.role ?? 'unknown',
+      avatarUrl: post.author?.avatarUrl ?? null,
+    };
 
     return base;
   }
