@@ -45,6 +45,24 @@ export class CreateJobDto {
   experienceLevel?: string;
 
   @IsOptional()
-  @IsEnum(['draft', 'published'])
+  @IsEnum(['draft', 'published', 'closed'])
   status?: string;
+
+  @IsOptional()
+  category?: string;
+
+  @IsOptional()
+  salary?: any;
+
+  @IsOptional()
+  jobType?: string;
+
+  @IsOptional()
+  type?: string;
+
+  @IsOptional()
+  experience?: string;
+
+  @IsOptional()
+  experienceRequired?: string;
 }

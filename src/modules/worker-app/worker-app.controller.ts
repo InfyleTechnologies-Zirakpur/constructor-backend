@@ -13,6 +13,7 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
@@ -98,6 +99,12 @@ export class WorkerAppController {
   @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
   async saveResume(@Req() req: any, @Body() body: Record<string, any>) {
     return this.workerAppService.saveResume(req.user.id, body);
+  }
+
+  @Get('resumes/:id/pdf')
+  @Roles('job_seeker', 'admin', 'contractor', 'site_engineer', 'company')
+  async getResumePdf(@Req() req: any, @Param('id') id: string, @Res() res: any) {
+    return this.workerAppService.getResumePdf(req.user.id, id, res);
   }
 
   @Delete('resumes/:id')

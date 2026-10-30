@@ -104,11 +104,38 @@ export class JobsService {
       );
     }
 
+    const effectiveCompensation =
+      dto.compensation !== undefined
+        ? Number(dto.compensation)
+        : dto.salary !== undefined
+          ? Number(String(dto.salary).replace(/[^\d.]/g, '')) || 0
+          : 0;
+
+    const effectiveProjectType =
+      dto.projectType || dto.jobType || dto.type || 'Full-time';
+
+    const effectiveExperienceLevel =
+      dto.experienceLevel || dto.experienceRequired || dto.experience || 'Any';
+
+    const cleanSkills = Array.isArray(dto.skills)
+      ? dto.skills.map((s) => String(s).trim()).filter(Boolean)
+      : [];
+    if (dto.category && !cleanSkills.includes(dto.category)) {
+      cleanSkills.unshift(dto.category);
+    }
+
     const job = this.jobRepository.create({
-      ...dto,
+      title: dto.title,
+      location: dto.location,
+      description: dto.description,
+      skills: cleanSkills,
+      compensation: effectiveCompensation,
+      dailyPay: Math.round(effectiveCompensation),
+      workforceRequired: dto.workforceRequired ? Number(dto.workforceRequired) : 1,
+      projectType: effectiveProjectType,
+      experienceLevel: effectiveExperienceLevel,
       companyId: company.id,
       status: dto.status ?? 'published',
-      dailyPay: dto.compensation ? Math.round(Number(dto.compensation)) : 0,
     });
 
     const savedJob = await this.jobRepository.save(job);
